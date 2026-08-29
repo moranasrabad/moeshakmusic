@@ -72,13 +72,13 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         v.findViewById(R.id.btnShuffle).setOnClickListener(x -> {
             pm.toggleShuffle();
             updateSecondary();
-            Ui.toast(requireContext(), "شافل: " + (pm.shuffle ? "روشن 🔀" : "خاموش"));
+            Ui.toast(requireContext(), pm.shuffle ? R.string.shuffle_on : R.string.shuffle_off);
         });
         v.findViewById(R.id.btnRepeat).setOnClickListener(x -> {
             pm.cycleRepeat();
             updateSecondary();
-            Ui.toast(requireContext(), new String[]{
-                    "تکرار: خاموش", "تکرار: کل لیست 🔁", "تکرار: همین آهنگ 🔂"}[pm.repeatMode]);
+            Ui.toast(requireContext(), new int[]{
+                    R.string.repeat_off, R.string.repeat_all, R.string.repeat_one}[pm.repeatMode]);
         });
         v.findViewById(R.id.btnFav).setOnClickListener(x -> {
             Track cur = pm.current();
@@ -119,10 +119,10 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         pm.attach(this);
         updateSecondary();
 
+        // ویژوالایزر همیشه وصل است: با دسترسی میکروفن موج واقعی، بدون آن انیمیشن ریتمیک
+        pm.setVisualizerView(viz);
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO)
-                == PackageManager.PERMISSION_GRANTED) {
-            pm.setVisualizerView(viz);
-        } else {
+                != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
         }
         } catch (Throwable t) {
@@ -147,17 +147,17 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         if (all.isEmpty()) {
             // ساخت مستقیم
             android.widget.EditText et = new android.widget.EditText(requireContext());
-            et.setHint("نام پلی‌لیست");
+            et.setHint(R.string.playlist_name_hint);
             et.setPadding(48, 24, 48, 24);
             new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                    .setTitle("پلی‌لیست جدید")
+                    .setTitle(R.string.playlist_new)
                     .setView(et)
-                    .setPositiveButton("ساخت و افزودن", (d, w) -> {
+                    .setPositiveButton(R.string.create_and_add, (d, w) -> {
                         String name = et.getText().toString().trim();
                         if (name.isEmpty()) return;
                         ps.create(name);
                         ps.addTrack(name, t);
-                        Ui.toast(requireContext(), "به «" + name + "» اضافه شد ✓");
+                        Ui.toast(requireContext(), getString(R.string.added_to_fmt, name));
                     })
                     .setNegativeButton(R.string.no, null).show();
             return;
@@ -165,24 +165,24 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         String[] names = new String[all.size()];
         for (int i = 0; i < all.size(); i++) names[i] = all.get(i).name + " (" + all.get(i).tracks.size() + ")";
         new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle("افزودن «" + t.title + "» به…")
+                .setTitle(getString(R.string.add_track_to, t.title))
                 .setItems(names, (d, w) -> {
                     boolean ok = ps.addTrack(all.get(w).name, t);
-                    Ui.toast(requireContext(), ok ? "به «" + all.get(w).name + "» اضافه شد ✓" : "از قبل بود");
+                    Ui.toast(requireContext(), ok ? getString(R.string.added_to_fmt, all.get(w).name) : getString(R.string.already_there));
                 })
-                .setPositiveButton("پلی‌لیست جدید…", (d, w) -> {
+                .setPositiveButton(R.string.playlist_new, (d, w) -> {
                     android.widget.EditText et = new android.widget.EditText(requireContext());
-                    et.setHint("نام پلی‌لیست");
+                    et.setHint(R.string.playlist_name_hint);
                     et.setPadding(48, 24, 48, 24);
                     new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                            .setTitle("پلی‌لیست جدید")
+                            .setTitle(R.string.playlist_new)
                             .setView(et)
-                            .setPositiveButton("ساخت و افزودن", (d2, w2) -> {
+                            .setPositiveButton(R.string.create_and_add, (d2, w2) -> {
                                 String name = et.getText().toString().trim();
                                 if (name.isEmpty()) return;
                                 ps.create(name);
                                 ps.addTrack(name, t);
-                                Ui.toast(requireContext(), "به «" + name + "» اضافه شد ✓");
+                                Ui.toast(requireContext(), getString(R.string.added_to_fmt, name));
                             })
                             .setNegativeButton(R.string.no, null).show();
                 })
@@ -211,9 +211,8 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         tvArtist.setText(t.subtitle());
         tvChat.setText(t.chatTitle);
         updateSecondary();
-        android.graphics.Bitmap b = t.art();
-        if (b != null) art.setImageBitmap(b);
-        else art.setImageResource(R.drawable.bg_art);
+        // تامبنیل با لودر برند (مینی‌تامب ← کاور ← عکس کانال)
+        ir.moeshakteam.moeshakmusic.data.ArtLoader.load(t, art);
         if (t.downloadPct >= 0) {
             dlRow.setVisibility(View.VISIBLE);
             dlBar.setProgress(t.downloadPct);
@@ -232,8 +231,10 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
     @Override
     public void onPlayStateChanged(boolean playing) {
         if (!isAdded()) return;
-        requireActivity().runOnUiThread(() ->
-                btnPlay.setImageResource(playing ? R.drawable.ic_pause : R.drawable.ic_play));
+        requireActivity().runOnUiThread(() -> {
+            btnPlay.setImageResource(playing ? R.drawable.ic_pause : R.drawable.ic_play);
+            if (viz != null) viz.setPlaying(playing);
+        });
     }
 
     @Override

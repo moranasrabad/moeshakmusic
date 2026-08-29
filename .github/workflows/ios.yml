@@ -1,0 +1,90 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'MoeshakMusic-iOS/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: MoeshakMusic-iOS
+        run: xcodegen
+
+      - name: Build (unsigned, device)
+        working-directory: MoeshakMusic-iOS
+        run: |
+          set -o pipefail
+          xcodebuild -project MoeshakMusic.xcodeproj \
+            -scheme MoeshakMusic \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build.log | tail -30
+
+      - name: Verify app bundle
+        id: verify
+        run: |
+          APP="MoeshakMusic-iOS/build/Build/Products/Release-iphoneos/MoeshakMusic.app"
+          if [ -d "$APP" ]; then
+            echo "status=ok" >> $GITHUB_OUTPUT
+            echo "✅ App built successfully"
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "❌ Build failed"
+            grep -E "error:" MoeshakMusic-iOS/build.log | head -30 || true
+            exit 1
+          fi
+
+      - name: Package unsigned IPA
+        if: steps.verify.outputs.status == 'ok'
+        run: |
+          rm -rf Payload MoeshakMusic-unsigned.ipa
+          mkdir -p Payload
+          cp -R MoeshakMusic-iOS/build/Build/Products/Release-iphoneos/MoeshakMusic.app Payload/
+          zip -qry MoeshakMusic-unsigned.ipa Payload
+          ls -la MoeshakMusic-unsigned.ipa
+
+      - name: Create release with IPA
+        if: steps.verify.outputs.status == 'ok'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd MoeshakMusic-iOS
+          gh release create "ios-v${GITHUB_RUN_NUMBER}" \
+            --title "🚀 موشک موزیک iOS — بیلد $GITHUB_RUN_NUMBER" \
+            --notes "IPA نام‌امضا — با Sideloadly/AltStore/TrollStore نصب کن" \
+            "MoeshakMusic-unsigned.ipa#MoeshakMusic-v$GITHUB_RUN_NUMBER-unsigned.ipa" || \
+          gh release upload "ios-v${GITHUB_RUN_NUMBER}" "MoeshakMusic-unsigned.ipa" --clobber
+
+      - name: Save status log to repo
+        if: always()
+        run: |
+          cd MoeshakMusic-iOS
+          mkdir -p ios-build
+          {
+            echo "# iOS Build — $GITHUB_RUN_NUMBER — $(date -u '+%Y-%m-%d %H:%M UTC')"
+            echo
+            echo "**Status:** ${{ steps.verify.outputs.status }}"
+            echo
+            echo '```'
+            tail -80 build.log
+            echo '```'
+          } > ios-build/log.md
+          git config user.name "ios-builder"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ios-build/log.md
+          git commit -m "🤖 iOS build log #$GITHUB_RUN_NUMBER — ${{ steps.verify.outputs.status }}" || echo "nothing to commit"
+          git push

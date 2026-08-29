@@ -47,8 +47,6 @@ public class ChannelsFragment extends Fragment {
         adapter = new ChannelAdapter();
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         recycler.setAdapter(adapter);
-        v.findViewById(R.id.btnBack).setOnClickListener(x ->
-                requireActivity().onBackPressed());
         refresh();
     }
 
@@ -94,8 +92,8 @@ public class ChannelsFragment extends Fragment {
             for (Track t : tracks) if (DownloadStore.get(requireContext()).isDownloaded(t)) downloaded++;
             h.tvAvatar.setText(name.substring(0, 1).toUpperCase());
             h.tvName.setText(name);
-            String count = tracks.size() + " موزیک";
-            if (downloaded > 0) count += " • " + downloaded + " دانلودشده";
+            String count = getString(R.string.count_tracks, tracks.size());
+            if (downloaded > 0) count += " • " + getString(R.string.count_downloaded, downloaded);
             h.tvCount.setText(count);
             // لمس → فیلتر کتابخانه بر اساس این کانال
             h.itemView.setOnClickListener(x -> {
@@ -105,7 +103,7 @@ public class ChannelsFragment extends Fragment {
                     ((MainActivity) requireActivity()).openPlayer();
             });
             h.btnAddToPlaylist.setOnClickListener(x -> {
-                Ui.toast(requireContext(), "افزودن " + tracks.size() + " موزیک به پلی‌لیست…");
+                Ui.toast(requireContext(), R.string.add_channel_to_playlist);
                 PlaylistPicker.show(requireActivity(), tracks);
             });
             h.btnDownloadAll.setOnClickListener(x -> {

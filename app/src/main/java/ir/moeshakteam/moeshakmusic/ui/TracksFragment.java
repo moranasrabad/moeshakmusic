@@ -61,152 +61,71 @@ public class TracksFragment extends Fragment {
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         recycler.setAdapter(adapter);
 
-        swipe.setOnRefreshListener(this::scan);
-        // ساید منو
-        androidx.drawerlayout.widget.DrawerLayout drawer = v.findViewById(R.id.drawer);
-        if (drawer != null) {
-            View bm = v.findViewById(R.id.btnMenu);
-            if (bm != null) bm.setOnClickListener(x -> drawer.openDrawer(android.view.Gravity.START));
-            bindSideMenu(v, drawer);
+        swipe.setOnRefreshListener(() -> {
+            refresh();
+            swipe.setRefreshing(false);
+        });
+        if (isAdded()) {
+            Tg.get(requireContext()).onLibraryChanged = () -> {
+                if (TracksFragment.liveTracks != null) TracksFragment.liveTracks.refresh();
+                if (TracksFragment.liveFavs != null) TracksFragment.liveFavs.refresh();
+            };
         }
+        refresh();
+        // ثبت نمونهٔ زنده برای سرچ از MainActivity
+        if (favOnly) liveFavs = this;
+        else liveTracks = this;
+    }
 
-        Tg tg = Tg.get(requireContext());
-        if (!tg.library.isEmpty()) {
-            adapter.setAll(tg.library);
-            if (favOnly) {
-                java.util.List<Track> favs = PlayerManager.favoriteTracks();
-                adapter.setAll(favs);
-            }
+    @Override
+    public void onResume() {
+        super.onResume();
+        refresh();
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (liveFavs == this) liveFavs = null;
+        if (liveTracks == this) liveTracks = null;
+        super.onDestroyView();
+    }
+
+    /** نمونه‌های زنده — MainActivity سرچ را به اینها می‌فرستد */
+    public static TracksFragment liveTracks;
+    public static TracksFragment liveFavs;
+
+    /** بارگذاری لیست از منبع (کتابخانهٔ دائمی یا فیوریت‌ها) */
+    public void refresh() {
+        if (adapter == null || !isAdded()) return;
+        if (favOnly) {
+            adapter.setAll(PlayerManager.favoriteTracks());
             empty.setVisibility(adapter.isEmpty() ? View.VISIBLE : View.GONE);
-        } else if (!favOnly) {
-            scan();
+            if (adapter.isEmpty())
+                empty.setText(R.string.fav_empty_hint);
+        } else {
+            adapter.setAll(Tg.get(requireContext()).library);
+            empty.setVisibility(adapter.isEmpty() ? View.VISIBLE : View.GONE);
+            if (adapter.isEmpty())
+                empty.setText(R.string.library_empty_hint);
         }
-        if (favOnly && adapter.isEmpty()) empty.setVisibility(View.VISIBLE);
     }
 
     public void filter(String q) {
         if (adapter != null) adapter.filter(q);
     }
 
-    private void bindSideMenu(View v, androidx.drawerlayout.widget.DrawerLayout drawer) {
-        View.OnClickListener go = x -> {
-            drawer.closeDrawer(android.view.Gravity.START);
-            int id = x.getId();
-            if (id == R.id.sidePlaylists) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new PlaylistsFragment()).addToBackStack("pl").commit();
-            } else if (id == R.id.sideFavorites) {
-                List<Track> favs = PlayerManager.favoriteTracks();
-                if (favs.isEmpty()) {
-                    Ui.toast(requireContext(), getString(R.string.fav_empty));
-                    return;
-                }
-                PlayerManager.get(requireContext()).play(favs, 0);
-                if (getActivity() instanceof MainActivity) ((MainActivity) getActivity()).openPlayer();
-            } else if (id == R.id.sideDownloads) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new DownloadsFragment()).addToBackStack("dl").commit();
-            } else if (id == R.id.sideChannels) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new ChannelsFragment()).addToBackStack("cn").commit();
-            } else if (id == R.id.sideChats) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new ChatsFragment()).addToBackStack("ct").commit();
-            } else if (id == R.id.sideProxy) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new ProxyFragment()).addToBackStack("px").commit();
-            } else if (id == R.id.sideLog) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new LogFragment()).addToBackStack("lg").commit();
-            } else if (id == R.id.sideSettings) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new SettingsFragment()).addToBackStack("st").commit();
-            } else if (id == R.id.sideTheme) {
-                int mode = (Prefs.get(requireContext()).themeMode() + 1) % 3;
-                Prefs.get(requireContext()).setThemeMode(mode);
-                ir.moeshakteam.moeshakmusic.App.applyTheme(requireContext());
-            }
-        };
-        int[] ids = {R.id.sidePlaylists, R.id.sideFavorites, R.id.sideDownloads, R.id.sideChannels,
-                R.id.sideChats, R.id.sideProxy, R.id.sideLog, R.id.sideSettings, R.id.sideTheme};
-        for (int res : ids) {
-            View vv = v.findViewById(res);
-            if (vv != null) vv.setOnClickListener(go);
-        }
-    }
 
-    private void scan() {
-        Tg tg = Tg.get(requireContext());
-        if (tg.auth() != Tg.Auth.READY) return;
-        if (tg.isScanning()) {
-            Ui.toast(requireContext(), "اسکن در حال اجراست");
-            return;
-        }
-        String[] options = {"۵۰ چت اول (سریع)", "۱۰۰ چت اول", "۳۰۰ چت اول", "همهٔ چت‌ها (کامل)"};
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                .setTitle("اسکن دستی — چند چت؟")
-                .setItems(options, (d, w) -> {
-                    int count = w == 0 ? 50 : w == 1 ? 100 : w == 2 ? 300 : Integer.MAX_VALUE;
-                    doScan(count);
-                })
-                .setNegativeButton("انصراف", null)
-                .show();
-    }
-
-    private void doScan(int count) {
-        Tg tg = Tg.get(requireContext());
-        progress.setVisibility(tg.library.isEmpty() ? View.VISIBLE : View.GONE);
-        empty.setVisibility(View.GONE);
-        swipe.setRefreshing(true);
-        final long t0 = System.currentTimeMillis();
-        tg.scanRange(0, count, new Tg.ScanListener() {
-            @Override
-            public void onProgress(int found, int chats) {
-                main.post(() -> {
-                    if (!isAdded()) return;
-                    long sec = (System.currentTimeMillis() - t0) / 1000;
-                    progress.setVisibility(View.GONE);
-                    empty.setVisibility(View.VISIBLE);
-                    empty.setText("🔍 " + chats + " چت اسکن شد\n🎵 " + found + " موزیک پیدا شد\n⏱ " + sec + " ثانیه");
-                });
-            }
-
-            @Override
-            public void onDone(int total) {
-                main.post(() -> {
-                    if (!isAdded()) return;
-                    progress.setVisibility(View.GONE);
-                    swipe.setRefreshing(false);
-                    adapter.setAll(Tg.get(requireContext()).library);
-                    long sec = (System.currentTimeMillis() - t0) / 1000;
-                    empty.setVisibility(adapter.isEmpty() ? View.VISIBLE : View.GONE);
-                    if (adapter.isEmpty()) {
-                        empty.setText("🏁 تمام شد — چیزی پیدا نشد\n⏱ " + sec + " ثانیه");
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String msg) {
-                main.post(() -> {
-                    if (!isAdded()) return;
-                    progress.setVisibility(View.GONE);
-                    swipe.setRefreshing(false);
-                    Ui.toast(requireContext(), msg);
-                });
-            }
-        });
-    }
+    /** حذف شد — اسکن فقط از بخش SCAN انجام می‌شود تا با کتابخانه قاطی نشود */
 
     private void showTrackMenu(Track t, int pos) {
         ir.moeshakteam.moeshakmusic.data.DownloadStore ds = ir.moeshakteam.moeshakmusic.data.DownloadStore.get(requireContext());
         ir.moeshakteam.moeshakmusic.data.PlaylistStore ps = ir.moeshakteam.moeshakmusic.data.PlaylistStore.get(requireContext());
         boolean downloaded = ds.isDownloaded(t);
         java.util.List<String> opts = new java.util.ArrayList<>();
-        opts.add(downloaded ? "✓ دانلود شده" : "⬇️ دانلود");
-        opts.add("➕ افزودن به پلی‌لیست");
-        if (ps.all().size() > 0) opts.add("➖ حذف از پلی‌لیست");
-        opts.add("🔀 افزودن به صف");
+        opts.add(downloaded ? getString(R.string.downloaded_ok) : getString(R.string.download));
+        opts.add(getString(R.string.add_to_playlist));
+        if (ps.all().size() > 0) opts.add(getString(R.string.remove_from_playlist));
+        opts.add(getString(R.string.add_to_queue));
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                 .setTitle(t.title)
                 .setItems(opts.toArray(new String[0]), (d, w) -> {
@@ -218,14 +137,14 @@ public class TracksFragment extends Fragment {
                         String[] names = new String[ps.all().size()];
                         for (int i = 0; i < ps.all().size(); i++) names[i] = ps.all().get(i).name;
                         new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                                .setTitle("حذف از کدام پلی‌لیست؟")
+                                .setTitle(R.string.remove_from_which)
                                 .setItems(names, (d2, w2) -> {
                                     ps.removeTrack(names[w2], t.chatId, t.messageId);
-                                    Ui.toast(requireContext(), "حذف شد");
+                                    Ui.toast(requireContext(), R.string.removed);
                                 }).show();
                     } else if (w == opts.size() - 1) {
                         PlayerManager.get(requireContext()).addToQueue(t);
-                        Ui.toast(requireContext(), "به صف اضافه شد");
+                        Ui.toast(requireContext(), R.string.added_to_queue);
                     }
                 }).show();
     }

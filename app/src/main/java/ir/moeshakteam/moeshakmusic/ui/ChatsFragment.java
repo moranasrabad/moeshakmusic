@@ -46,6 +46,7 @@ public class ChatsFragment extends Fragment {
     private RecyclerView recycler;
     private ProgressBar progress;
     private TextView empty, tvAccount;
+    private android.widget.EditText etSearch;
     private ChatAdapter adapter;
     private int selectedTab; // 0=اصلی 1=آرشیو 2+ = پوشه‌ها
     private long myId;
@@ -64,13 +65,25 @@ public class ChatsFragment extends Fragment {
         progress = v.findViewById(R.id.progress);
         empty = v.findViewById(R.id.empty);
         tvAccount = v.findViewById(R.id.tvAccount);
+        etSearch = v.findViewById(R.id.etChatSearch);
+        if (etSearch != null) etSearch.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+                adapter.filter(s == null ? "" : s.toString());
+            }
+        });
 
         adapter = new ChatAdapter();
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         recycler.setAdapter(adapter);
-
-        v.findViewById(R.id.btnBack).setOnClickListener(x ->
-                requireActivity().onBackPressed());
 
         Tg.get(requireContext()).getAccount((name, phone, id) -> main.post(() -> {
             if (isAdded()) {
@@ -199,11 +212,28 @@ public class ChatsFragment extends Fragment {
     // ---------- آداپتور ----------
 
     private class ChatAdapter extends RecyclerView.Adapter<VH> {
+        private List<TdApi.Chat> all = new ArrayList<>();
         private List<TdApi.Chat> items = new ArrayList<>();
+        private String query = "";
 
         void setItems(List<TdApi.Chat> list) {
-            items = list;
+            all = list;
+            refilter();
+        }
+
+        void filter(String q) {
+            query = q == null ? "" : q;
+            refilter();
+        }
+
+        private void refilter() {
+            items.clear();
+            String n = query.toLowerCase().trim();
+            for (TdApi.Chat c : all) {
+                if (n.isEmpty() || (c.title != null && c.title.toLowerCase().contains(n))) items.add(c);
+            }
             notifyDataSetChanged();
+            empty.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
         }
 
         @NonNull

@@ -32,7 +32,7 @@
                     android:layout_height="40dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/settings"
-                    android:src="@drawable/ic_queue"
+                    android:src="@drawable/ic_menu"
                     app:tint="?attr/colorOnSurface" />
 
                 <TextView
@@ -41,11 +41,23 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:layout_weight="1"
-                    android:text="TRACKS"
+                    android:text="@string/tab_tracks"
                     android:textAllCaps="true"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="24sp"
                     android:textStyle="bold" />
+
+                <!-- وضعیت اتصال/پروکسی — مثل تلگرام -->
+                <ImageView
+                    android:id="@+id/ivConn"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/proxy_screen_title"
+                    android:padding="5dp"
+                    android:src="@drawable/ic_shield"
+                    app:tint="#F59E0B" />
 
                 <ImageButton
                     android:id="@+id/btnSearchIcon"
@@ -63,9 +75,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="14dp"
                 android:layout_marginVertical="4dp"
-                android:background="@drawable/bg_glass"
+                android:background="@drawable/bg_search"
                 app:iconifiedByDefault="false"
-                app:queryHint="Search songs…"
+                app:queryHint="@string/search_hint"
                 app:searchIcon="@drawable/ic_search" />
 
             <com.google.android.material.tabs.TabLayout
@@ -75,8 +87,12 @@
                 android:background="@android:color/transparent"
                 app:tabGravity="start"
                 app:tabIndicatorColor="?attr/colorPrimary"
+                app:tabIndicatorFullWidth="false"
+                app:tabIndicatorHeight="2.5dp"
                 app:tabMode="scrollable"
+                app:tabRippleColor="@null"
                 app:tabSelectedTextColor="?attr/colorOnSurface"
+                app:tabTextAppearance="@style/MoeshakTab"
                 app:tabTextColor="?attr/colorOnSurfaceVariant" />
 
             <androidx.viewpager2.widget.ViewPager2
@@ -105,68 +121,12 @@
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/sideLibrary"
+                android:id="@+id/sideProxy"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="20dp"
                 android:paddingVertical="14dp"
-                android:text="Tracks"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="15sp"
-                android:background="?attr/selectableItemBackground" />
-
-            <TextView
-                android:id="@+id/sidePlaylists"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="20dp"
-                android:paddingVertical="14dp"
-                android:text="Playlists"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="15sp"
-                android:background="?attr/selectableItemBackground" />
-
-            <TextView
-                android:id="@+id/sideFavorites"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="20dp"
-                android:paddingVertical="14dp"
-                android:text="Favorites"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="15sp"
-                android:background="?attr/selectableItemBackground" />
-
-            <TextView
-                android:id="@+id/sideDownloads"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="20dp"
-                android:paddingVertical="14dp"
-                android:text="Downloads"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="15sp"
-                android:background="?attr/selectableItemBackground" />
-
-            <TextView
-                android:id="@+id/sideChannels"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="20dp"
-                android:paddingVertical="14dp"
-                android:text="Channels"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="15sp"
-                android:background="?attr/selectableItemBackground" />
-
-            <TextView
-                android:id="@+id/sideChats"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="20dp"
-                android:paddingVertical="14dp"
-                android:text="Chats"
+                android:text="@string/proxy_screen_title"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="15sp"
                 android:background="?attr/selectableItemBackground" />
@@ -177,7 +137,7 @@
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="20dp"
                 android:paddingVertical="14dp"
-                android:text="Proxy"
+                android:text="@string/proxy_screen_title"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="15sp"
                 android:background="?attr/selectableItemBackground" />
@@ -188,7 +148,7 @@
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="20dp"
                 android:paddingVertical="14dp"
-                android:text="Live Log"
+                android:text="@string/log_title"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="15sp"
                 android:background="?attr/selectableItemBackground" />
@@ -199,7 +159,7 @@
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="20dp"
                 android:paddingVertical="14dp"
-                android:text="Settings"
+                android:text="@string/settings_title"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="15sp"
                 android:background="?attr/selectableItemBackground" />
@@ -210,7 +170,7 @@
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="20dp"
                 android:paddingVertical="14dp"
-                android:text="Theme"
+                android:text="@string/theme_setting"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="15sp"
                 android:background="?attr/selectableItemBackground" />
@@ -234,7 +194,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:background="?attr/colorSurface"
+        android:background="@drawable/bg_mini"
         android:elevation="10dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
@@ -285,13 +245,20 @@
             android:src="@drawable/ic_shuffle"
             app:tint="?attr/colorOnSurfaceVariant" />
 
-        <ImageButton
-            android:id="@+id/miniToggle"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/playing_now"
-            android:src="@drawable/ic_pause"
-            app:tint="?attr/colorPrimary" />
+        <FrameLayout
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:background="@drawable/bg_play">
+
+            <ImageButton
+                android:id="@+id/miniToggle"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/playing_now"
+                android:padding="10dp"
+                android:src="@drawable/ic_pause"
+                app:tint="@color/moeshak_on_accent" />
+        </FrameLayout>
     </LinearLayout>
 </FrameLayout>

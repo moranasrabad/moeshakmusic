@@ -29,19 +29,19 @@
         app:layout_constraintTop_toBottomOf="@id/btnBack"
         app:layout_constraintVertical_bias="0.4" />
 
-    <ImageView
+    <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/art"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="@drawable/bg_glow"
-        android:padding="22dp"
-        android:scaleType="fitCenter"
+        android:scaleType="centerCrop"
         android:src="@drawable/bg_art"
         app:layout_constraintBottom_toBottomOf="@id/viz"
         app:layout_constraintDimensionRatio="1:1"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/viz" />
+        app:layout_constraintTop_toTopOf="@id/viz"
+        app:shapeAppearanceOverlay="@style/CircleImg" />
 
     <LinearLayout
         android:id="@+id/titleBlock"

@@ -56,9 +56,6 @@ public class DownloadsFragment extends Fragment {
         adapter = new DownloadsAdapter();
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         recycler.setAdapter(adapter);
-
-        v.findViewById(R.id.btnBack).setOnClickListener(x ->
-                requireActivity().onBackPressed());
         v.findViewById(R.id.btnDownloadChannel).setOnClickListener(x -> pickChannelToDownload());
         refresh();
     }
@@ -184,9 +181,22 @@ public class DownloadsFragment extends Fragment {
                 new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                         .setMessage(getString(R.string.delete_download_confirm, e.title))
                         .setPositiveButton(R.string.yes, (d, w) -> {
+                            // حذف فایل از حافظه هم
+                            try {
+                                if (e.path != null && !e.path.isEmpty()) {
+                                    java.io.File f = new java.io.File(e.path);
+                                    if (f.exists() && f.delete()) {
+                                        Tg.log("🗑 فایل حذف شد: " + e.path);
+                                    } else {
+                                        Tg.log("⚠️ فایل پیدا نشد: " + e.path);
+                                    }
+                                }
+                            } catch (Throwable t) {
+                                Tg.log("⚠️ حذف فایل: " + t);
+                            }
                             DownloadStore.get(requireContext()).remove(e.key);
                             refresh();
-                            Ui.toast(requireContext(), "حذف شد از لیست");
+                            Ui.toast(requireContext(), R.string.removed);
                         })
                         .setNegativeButton(R.string.no, null).show();
                 return true;

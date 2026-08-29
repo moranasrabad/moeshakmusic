@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- تم‌های اکسنت — والد Theme.Moeshak (واریانت شب خودکار از values-night رعایت می‌شود) -->
+<resources>
+    <style name="Accent.Icy" parent="Theme.Moeshak">
+        <item name="colorPrimary">#22D3EE</item>
+        <item name="colorOnPrimary">#05242B</item>
+        <item name="colorSecondary">#8B5CF6</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+    </style>
+
+    <style name="Accent.Purple" parent="Theme.Moeshak">
+        <item name="colorPrimary">#A78BFA</item>
+        <item name="colorOnPrimary">#1E1033</item>
+        <item name="colorSecondary">#22D3EE</item>
+        <item name="colorOnSecondary">#05242B</item>
+    </style>
+
+    <style name="Accent.Green" parent="Theme.Moeshak">
+        <item name="colorPrimary">#34D399</item>
+        <item name="colorOnPrimary">#03251A</item>
+        <item name="colorSecondary">#3B82F6</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+    </style>
+
+    <style name="Accent.Amber" parent="Theme.Moeshak">
+        <item name="colorPrimary">#F59E0B</item>
+        <item name="colorOnPrimary">#241500</item>
+        <item name="colorSecondary">#F43F5E</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+    </style>
+
+    <style name="Accent.Rose" parent="Theme.Moeshak">
+        <item name="colorPrimary">#FB7185</item>
+        <item name="colorOnPrimary">#2B0710</item>
+        <item name="colorSecondary">#8B5CF6</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+    </style>
+
+    <style name="Accent.Blue" parent="Theme.Moeshak">
+        <item name="colorPrimary">#60A5FA</item>
+        <item name="colorOnPrimary">#0A1A33</item>
+        <item name="colorSecondary">#22D3EE</item>
+        <item name="colorOnSecondary">#05242B</item>
+    </style>
+</resources>
