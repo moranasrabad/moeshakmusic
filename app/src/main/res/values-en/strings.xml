@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Moeshak Music</string>
+    <string name="tagline">Listen to your Telegram music here 🚀</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_title">Welcome to Moeshak Music</string>
+    <string name="onboarding_desc">To connect to your Telegram account, you need your own API ID and API Hash once. Get them free from my.telegram.org (API development tools) and enter them here.</string>
+    <string name="api_id">API ID</string>
+    <string name="api_hash">API Hash</string>
+    <string name="get_api">Get API from my.telegram.org</string>
+    <string name="save_and_continue">Save &amp; continue</string>
+    <string name="enter_api_id">Enter API ID (number)</string>
+    <string name="enter_api_hash">Enter API Hash</string>
+
+    <!-- Login -->
+    <string name="login_title">Sign in to Telegram</string>
+    <string name="phone_hint">Phone number — e.g. +1555…</string>
+    <string name="send_code">Send code</string>
+    <string name="code_title">Confirmation code</string>
+    <string name="code_hint">The 5-digit code we sent you</string>
+    <string name="verify">Verify</string>
+    <string name="password_title">Two-step password</string>
+    <string name="password_hint">Your account password</string>
+    <string name="login">Sign in</string>
+    <string name="logging_in">Signing in…</string>
+
+    <!-- Library -->
+    <string name="library_title">Music Library</string>
+    <string name="search">Search</string>
+    <string name="theme">Appearance</string>
+    <string name="settings">Settings</string>
+    <string name="empty_library">No music found yet 🎵\nSend yourself music on Telegram and refresh!</string>
+    <string name="loading_library">Searching your chats for music…</string>
+    <string name="library_stats">%1$d tracks from %2$d chats</string>
+    <string name="playing_now">Now playing</string>
+    <string name="unknown_title">Untitled</string>
+    <string name="unknown_performer">Unknown artist</string>
+
+    <!-- Player -->
+    <string name="download">Download</string>
+    <string name="downloading">Downloading… %1$d%%</string>
+    <string name="download_done">Ready ✓</string>
+    <string name="viz_permission_note">The visualizer needs microphone access (audio analysis) — sound is never stored or sent anywhere.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="account">Account</string>
+    <string name="logout">Log out</string>
+    <string name="logout_confirm">Log out of your Telegram account?</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="theme_setting">Appearance</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="about">About</string>
+    <string name="made_by">Made with 🚀 by Moeshak Team</string>
+    <string name="visit_site">moeshakteam.ir</string>
+    <string name="version">Version 5.6.0</string>
+    <string name="back">Back</string>
+
+    <!-- Errors & states -->
+    <string name="err_generic">Something went wrong: %1$s</string>
+    <string name="err_network">Couldn\'t reach Telegram — check your connection</string>
+    <string name="err_invalid_keys">API ID or API Hash is invalid</string>
+    <string name="err_bad_code">The code is incorrect</string>
+    <string name="err_bad_password">The password is incorrect</string>
+    <string name="err_flood">Too many attempts — wait a few minutes</string>
+    <string name="err_phone">The phone number is invalid</string>
+    <string name="player_error">Couldn\'t play this file</string>
+
+    <!-- Notification -->
+    <string name="notif_channel">Music playback</string>
+    <string name="notif_title">Moeshak Music</string>
+    <string name="action_close">Close</string>
+    <!-- Proxy -->
+    <string name="btn_proxy">🔧 Connect via proxy / troubleshoot</string>
+    <string name="proxy_title">Connect via MTProto proxy</string>
+    <string name="proxy_hint">tg://proxy?… link or server:port:secret</string>
+    <string name="proxy_save">Save &amp; connect</string>
+    <string name="proxy_saved">Proxy applied — retrying…</string>
+    <string name="proxy_bad">Couldn\'t parse the proxy link</string>
+    <string name="proxy_tip">Get MTProto proxy links from trusted channels (tg://proxy) or turn on your VPN — Telegram blocks direct connections from Iranian IPs.</string>
+    <string name="conn_connecting">Connecting to Telegram…</string>
+    <string name="conn_ready">Connected ✓</string>
+    <string name="conn_waiting">Network unavailable! VPN or proxy needed ⚠️</string>
+    <string name="conn_updating">Updating…</string>
+    <string name="err_code_sent_already">Code already sent — check the official Telegram chat and enter it here</string>
+    <string name="err_api_flood">Telegram temporarily limited this key — keep VPN on, wait a few minutes and retry</string>
+    <string name="resend_code">No code? Resend</string>
+    <string name="proxy_active">Proxy enabled — connecting…</string>
+    <string name="btn_qr">⚡ Sign in with QR — no SMS or code (recommended)</string>
+    <string name="qr_hint">In the official Telegram app (while logged in):\n⚙️ Settings → Devices → Link Desktop Device\nTap and scan this code — done!</string>
+    <string name="qr_back">← Back to phone login</string>
+    <string name="code_hint_inapp">The code arrives in the official "Telegram" chat inside your app (not SMS) — check there</string>
+    <string name="force_code">📩 Code sent but this screen didn\'t open? Tap here</string>
+    <!-- Proxy screen -->
+    <string name="proxy_screen_title">Proxies</string>
+    <string name="proxy_empty">No proxies yet.\nGrab a tg://proxy link from proxy channels and add it above.</string>
+    <string name="proxy_add">Add</string>
+    <string name="proxy_ping_all">Ping all</string>
+    <string name="proxy_ping_one">Test ping</string>
+    <string name="proxy_delete">Delete</string>
+    <string name="proxy_use">Use as active proxy</string>
+    <string name="proxy_dup">This proxy is already in your list</string>
+    <string name="proxy_added">Proxy added — tap it to activate</string>
+    <string name="proxy_pinging">Pinging…</string>
+    <string name="proxy_ping_done">All pinged</string>
+    <string name="proxy_ping_ms">%1$d ms</string>
+    <string name="proxy_ping_fail">✗ No response</string>
+    <string name="proxy_ping_unknown">Ping: not tested</string>
+    <string name="proxy_disabled">Proxy disabled</string>
+    <string name="resend_only_after_send">Enter your phone first so the code is sent</string>
+    <string name="resend_not_allowed">Can\'t resend right now — try again in a minute</string>
+    <string name="code_resent">Code resent ✓</string>
+    <string name="proxy_settings_desc">Manage MTProto servers: add, ping and select</string>
+    <string name="btn_qr_short">⚡ Quick QR sign-in (recommended — no code)</string>
+    <string name="qr_from_code">No code? → Sign in with QR ⚡</string>
+    <string name="library_stats_live">%1$d tracks • %2$d chats • %3$ds</string>
+    <string name="scan_zero_hint">No audio files found</string>
+    <string name="scan_preparing">Preparing scan… (loading chats)</string>
+    <string name="library_stats_final">%1$d tracks • %2$d chats scanned • %3$ds</string>
+    <!-- Chat browser -->
+    <string name="chats_title">Browse chats</string>
+    <string name="chats_empty">No chats in this folder</string>
+    <string name="folder_main">Main chats</string>
+    <string name="folder_archive">Archive</string>
+    <string name="deep_scan_started">Deep scanning "%1$s"… hang on</string>
+    <string name="deep_scan_done">%1$d new tracks found and added to library ✓</string>
+    <string name="deep_scan_none">No audio files in this chat</string>
+    <string name="log_title">Live log</string>
+    <string name="log_share">Share log</string>
+    <string name="chat_tracks">%1$s — tracks</string>
+    <string name="chat_deep_scan">🔍 Deep scan this chat</string>
+    <string name="chat_no_tracks">No tracks from this chat yet — tap "Deep scan"</string>
+    <string name="play_all">Play all</string>
+    <string name="scan_manual_title">Manual scan — where to start?</string>
+    <string name="scan_range_50">First 50 chats (fast)</string>
+    <string name="scan_range_100">First 100 chats</string>
+    <string name="scan_range_300">First 300 chats</string>
+    <string name="scan_range_all">All chats (full but slow)</string>
+    <string name="scan_deep_saved">⭐ Deep scan Saved Messages (500 msgs)</string>
+    <string name="scan_already">A scan is already running — wait for it to finish</string>
+    <string name="qr_building">Building QR code… wait a few seconds</string>
+    <string name="account_loading">Loading account…</string>
+    <string name="count_tracks">%1$d tracks</string>
+    <string name="count_chats">chats</string>
+    <string name="shuffle">Shuffle</string>
+    <string name="repeat">Repeat</string>
+    <string name="queue">Play queue</string>
+    <string name="favorites">Favorites</string>
+    <string name="queue_title">Play queue</string>
+    <string name="favorites_title">Favorites ⭐</string>
+    <string name="queue_empty">Queue is empty — long-press songs in the library</string>
+    <string name="fav_empty">No favorites yet — tap the heart on the player ❤️</string>
+    <string name="remove_from_queue">Remove from queue</string>
+    <string name="now_playing">Now playing from queue</string>
+    <string name="tab_all">All</string>
+    <string name="downloads_title">Downloads</string>
+    <string name="downloads_empty">Nothing downloaded yet — long-press a song and choose "Download"</string>
+    <string name="download_channel">Download entire channel</string>
+    <string name="channel_all_downloaded">All tracks from this channel are already downloaded ✓</string>
+    <string name="channel_download_started">⬇️ Downloading %1$d tracks — see progress in the live log</string>
+    <string name="channel_download_done">🎉 Channel download finished!</string>
+    <string name="channel_download_confirm">Download %2$d tracks from "%1$s". Continue?</string>
+    <string name="delete_download_confirm">Delete "%1$s"? The file will be removed from storage too</string>
+    <string name="playlists_title">Playlists</string>
+    <string name="playlists_empty">No playlists yet — long-press a song and choose "Add to playlist"</string>
+    <string name="playlist_new">New playlist</string>
+    <string name="download_channel_confirm">Download %2$d tracks from "%1$s". Continue?</string>
+    <string name="add_channel_to_playlist">➕ Add entire channel to playlist</string>
+    <string name="pick_channel">Pick a channel</string>
+    <string name="add_track_to">Add "%1$s" to…</string>
+    <string name="add_n_to_playlist">Add %1$d tracks to playlist</string>
+
+    <!-- Tabs & menu -->
+    <string name="tab_tracks">TRACKS</string>
+    <string name="tab_scan">SCAN</string>
+    <string name="tab_playlists">PLAYLISTS</string>
+    <string name="tab_favorites">FAVORITES</string>
+    <string name="tab_downloads">DOWNLOADS</string>
+    <string name="tab_channels">CHANNELS</string>
+    <string name="search_hint">Search songs…</string>
+    <string name="downloaded_ok">✓ Downloaded</string>
+    <string name="add_to_playlist">➕ Add to playlist</string>
+    <string name="remove_from_playlist">➖ Remove from playlist</string>
+    <string name="add_to_queue">🔀 Add to queue</string>
+    <string name="remove_from_which">Remove from which playlist?</string>
+    <string name="removed">Removed</string>
+    <string name="added_to_queue">Added to queue</string>
+    <string name="login_first">Sign in first ⚡</string>
+    <string name="scan_canceling">Cancelling…</string>
+    <string name="already_in_library">All were already in the library</string>
+    <string name="add_only_this">📚 Add only this to library</string>
+    <string name="shuffle_on">Shuffle: ON 🔀</string>
+    <string name="shuffle_off">Shuffle: OFF</string>
+    <string name="repeat_off">Repeat: off</string>
+    <string name="repeat_all">Repeat: all 🔁</string>
+    <string name="repeat_one">Repeat: one 🔂</string>
+    <string name="create">Create</string>
+    <string name="create_and_add">Create &amp; add</string>
+    <string name="playlist_name_hint">Playlist name</string>
+    <string name="added_to_fmt">Added to "%1$s" ✓</string>
+    <string name="already_there">Already there</string>
+    <string name="count_downloaded">%1$d downloaded</string>
+    <string name="accent_applied">Accent applied ✓</string>
+    <string name="accent_default">Default</string>
+    <string name="accent_icy">Icy</string>
+    <string name="accent_purple">Purple</string>
+    <string name="accent_green">Green</string>
+    <string name="accent_amber">Amber</string>
+    <string name="accent_rose">Rose</string>
+    <string name="accent_blue">Blue</string>
+
+    <!-- Scan section -->
+    <string name="scan_ready">Ready to scan — pick a depth 🔍</string>
+    <string name="scan_running">Scanning your Telegram chats…</string>
+    <string name="scan_start">🔍 Start scan</string>
+    <string name="scan_cancel">⏹ Cancel scan</string>
+    <string name="scan_depth_all">All</string>
+    <string name="scan_progress_line">🔍 %1$d chats scanned • 🎵 %2$d tracks • ⏱ %3$ds</string>
+    <string name="scan_done_line">🏁 Finished in %1$ds</string>
+    <string name="scan_finished">%1$d tracks in scan results 🎵</string>
+    <string name="scan_add_all">➕ Add all to library (%1$d)</string>
+    <string name="scan_added">%1$d tracks added to library ✓</string>
+    <string name="scan_clear">🗑 Clear results</string>
+    <string name="scan_empty">No scan yet\\nTap "Start scan" 🚀</string>
+    <string name="library_empty_hint">Your library is empty 🎵\\nScan from the SCAN tab and add tracks!</string>
+    <string name="fav_empty_hint">No favorites yet ❤️\\nTap the heart in the player</string>
+
+    <!-- Playlist: edit/delete/download -->
+    <string name="playlist_rename">Rename playlist</string>
+    <string name="playlist_delete">Delete playlist</string>
+    <string name="playlist_delete_confirm">Delete playlist "%1$s"?</string>
+    <string name="playlist_renamed">Playlist renamed ✓</string>
+    <string name="playlist_name_taken">That name already exists</string>
+    <string name="playlist_empty_toast">This playlist is empty</string>
+    <string name="save_btn">Save</string>
+
+    <string name="tab_chats">CHATS</string>
+    <string name="chats_search_hint">Search chats…</string>
+    <string name="proxy_toggle">Proxy on</string>
+    <string name="proxy_none_yet">Add a proxy first</string>
+    <string name="api_keys_title">🔑 Telegram API keys</string>
+    <string name="api_keys_desc">If the login code never arrives, enter your own key: get it from my.telegram.org (use a VPN), API development tools — the app restarts and signs in with your key.</string>
+    <string name="api_keys_save">Save &amp; restart app</string>
+    <string name="api_keys_reset">↺ Back to default key</string>
+    <string name="api_keys_saved">Key saved — restarting…</string>
+    <string name="api_keys_reset_done">Back to default key — restarting…</string>
+    <string name="api_keys_invalid">API ID must be a number and API Hash at least 32 chars</string>
+    <string name="session_terminated">🚪 Your session was terminated from another device — scan the QR again to sign in</string>
+</resources>

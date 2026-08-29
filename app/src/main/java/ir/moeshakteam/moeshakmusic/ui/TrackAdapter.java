@@ -107,11 +107,21 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.VH> {
         h.tvTitle.setText(t.title);
         h.tvSubtitle.setText(t.subtitle());
         h.tvDuration.setText(Ui.fmtDuration(t.duration));
-        Bitmap b = t.art();
-        if (b != null) h.art.setImageBitmap(b);
-        else h.art.setImageResource(R.drawable.bg_art);
+        // تامبنیل: مینی‌تامب ← کاور آلبوم ← عکس کانال ← گرادیان برند
+        ir.moeshakteam.moeshakmusic.data.ArtLoader.load(t, h.art);
         boolean isNow = t.sameAs(now);
         h.ivNow.setVisibility(isNow ? View.VISIBLE : View.GONE);
+        if (isNow) {
+            android.util.TypedValue tv = new android.util.TypedValue();
+            h.tvTitle.getContext().getTheme().resolveAttribute(
+                    com.google.android.material.R.attr.colorPrimary, tv, true);
+            h.tvTitle.setTextColor(tv.data);
+        } else {
+            android.util.TypedValue tv = new android.util.TypedValue();
+            h.tvTitle.getContext().getTheme().resolveAttribute(
+                    com.google.android.material.R.attr.colorOnSurface, tv, true);
+            h.tvTitle.setTextColor(tv.data);
+        }
         boolean downloaded = ir.moeshakteam.moeshakmusic.data.DownloadStore
                 .get(h.itemView.getContext()).isDownloaded(t);
         // شماره ترتیب یا تیک دانلود
