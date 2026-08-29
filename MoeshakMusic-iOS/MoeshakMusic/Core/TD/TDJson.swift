@@ -33,7 +33,7 @@ enum TDJson {
         self.updateHandler = updateHandler
         guard client == nil else { return }
         let id = td_create_client_id()
-        client = Client(id: id, thread: nil)
+        client = Client(id: id)
         gated = false
         // حلقهٔ دریافت — یک بار برای همیشه
         guard !receiveThreadStarted else { return }
@@ -56,7 +56,7 @@ enum TDJson {
         lock.lock(); defer { lock.unlock() }
         handlers.removeAll()
         let id = td_create_client_id()
-        client = Client(id: id, thread: nil)
+        client = Client(id: id)
         gated = false
         sendRawDict(["@type": "getOption", "name": "version"], handler: nil)
     }

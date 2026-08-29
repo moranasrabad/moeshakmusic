@@ -69,7 +69,12 @@ extension Track {
                   let mime = d["mime_type"] as? String, mime.hasPrefix("audio/"),
                   let f = d["document"] as? [String: Any] else { return nil }
             let fn = d["file_name"] as? String ?? ""
-            let name = fn.contains(".") ? String(fn.prefix((fn.range(of: ".", options: .backwards)?.lowerBound ?? fn.index(fn.startIndex, offsetBy: 0)))) : fn
+            let name: String
+            if let dot = fn.range(of: ".", options: .backwards) {
+                name = String(fn[..<dot.lowerBound])
+            } else {
+                name = fn
+            }
             return Track(chatId: chatId, messageId: m["id"] as? Int64 ?? 0,
                          chatTitle: chatTitle, title: name.isEmpty ? "فایل صوتی" : name,
                          performer: "فایل", duration: 0, date: date,

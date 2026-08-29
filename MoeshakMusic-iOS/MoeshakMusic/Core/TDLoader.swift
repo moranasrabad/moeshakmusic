@@ -91,17 +91,6 @@ enum TDLoader {
         return nil
     }
 
-    /// عکس پروفایل چت (برای تامبنیل)
-    static func chatPhoto(chatId: Int64) async -> UIImage? {
-        guard let c = try? await Task.detached {
-            try TDJson.syncDict(["@type": "getChat", "chat_id": chatId])
-        }.value else { return nil }
-        guard let photo = c["photo"] as? TDJson.AnyDict,
-              let small = photo["small"] as? TDJson.AnyDict,
-              let fid = small["id"] as? Int else { return nil }
-        return await Task.detached { downloadImage(fileId: fid, maxSize: 160) }.value
-    }
-
     private static func copyToCache(from src: String, to dest: URL) {
         let s = URL(fileURLWithPath: src)
         try? FileManager.default.removeItem(at: dest)

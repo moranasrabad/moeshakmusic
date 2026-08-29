@@ -308,7 +308,7 @@ struct VisualizerRing: View {
 }
 
 extension UIApplication {
-    func topViewController() -> UIViewController? {
+    @MainActor static func topViewController() -> UIViewController? {
         connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .flatMap { $0.windows }

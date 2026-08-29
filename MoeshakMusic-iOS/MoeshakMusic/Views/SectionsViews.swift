@@ -5,7 +5,7 @@ struct HeaderView: View {
     @EnvironmentObject var session: Session
     let title: String
     var showSearch: Bool
-    @Binding var query: String
+    var query: Binding<String> = .constant("")
     @State private var showSettings = false
 
     var body: some View {
@@ -57,7 +57,7 @@ extension Session {
     }
 }
 
-struct EmptyView: View {
+struct EmptyStateView: View {
     let icon: String
     let text: String
 

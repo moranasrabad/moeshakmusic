@@ -80,8 +80,10 @@ jobs:
             echo "**Status:** ${{ steps.verify.outputs.status }}"
             echo
             echo '```'
-            tail -80 build.log
+            grep -E "error:|warning: .*(unused|never)" build.log | head -60
             echo '```'
+            echo
+            <build.log tail -120
           } > ios-build/log.md
           git config user.name "ios-builder"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
