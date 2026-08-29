@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient android:type="sweep" android:startColor="@color/moeshak_grad_start"
+        android:centerColor="@color/moeshak_grad_end" android:endColor="@color/moeshak_grad_start" />
+</shape>

@@ -1,0 +1,6 @@
+build/
+.gradle/
+local.properties
+*.apk
+# libtdjson نیتیوها — با ./setup-abis.sh دوباره ساخته می‌شوند
+app/src/main/jniLibs/

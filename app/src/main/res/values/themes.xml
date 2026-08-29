@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Moeshak" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/moeshak_accent</item>
+        <item name="colorOnPrimary">@color/moeshak_on_accent</item>
+        <item name="colorSecondary">@color/moeshak_accent2</item>
+        <item name="colorOnSecondary">@color/moeshak_on_accent</item>
+        <item name="colorSurface">@color/moeshak_surface</item>
+        <item name="colorOnSurface">@color/moeshak_on_surface</item>
+        <item name="colorSurfaceVariant">@color/moeshak_elevated</item>
+        <item name="colorOnSurfaceVariant">@color/moeshak_muted</item>
+        <item name="colorError">@color/moeshak_bad</item>
+        <item name="android:colorBackground">@color/moeshak_bg</item>
+        <item name="colorOutline">@color/moeshak_elevated</item>
+        <item name="android:statusBarColor">@color/moeshak_bg</item>
+        <item name="android:navigationBarColor">@color/moeshak_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

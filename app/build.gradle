@@ -1,0 +1,79 @@
+plugins {
+    id 'com.android.application'
+}
+
+// API Keys بیک‌شده — از فایل keys.properties در ریشهٔ پروژه خوانده می‌شود
+// (نمونه: keys.properties.example). اگه فایل نباشد، خالی بیلد می‌شود
+// و کاربر کلیدها را در خود اپ وارد می‌کند.
+def keysProps = new Properties()
+def keysFile = rootProject.file('keys.properties')
+if (keysFile.exists()) {
+    keysFile.withInputStream { keysProps.load(it) }
+}
+def BAKED_API_ID = (keysProps.getProperty('apiId') ?: '0').trim()
+def BAKED_API_HASH = (keysProps.getProperty('apiHash') ?: '').trim()
+
+android {
+    namespace 'ir.moeshakteam.moeshakmusic'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "ir.moeshakteam.moeshakmusic"
+        minSdk 24
+        targetSdk 33
+        versionCode 64
+        versionName "5.0.0"
+        vectorDrawables.useSupportLibrary = true
+        buildConfigField "int", "BAKED_API_ID", BAKED_API_ID
+        buildConfigField "String", "BAKED_API_HASH", "\"${BAKED_API_HASH}\""
+        ndk {
+            if (project.hasProperty('slim')) {
+                abiFilters 'arm64-v8a'
+            } else {
+                abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+            }
+        }
+    }
+
+    signingConfigs {
+        release {
+            storeFile file("moeshak.keystore")
+            storePassword "moeshak1404"
+            keyAlias "moeshak"
+            keyPassword "moeshak1404"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['src/main/jniLibs']
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'androidx.viewpager2:viewpager2:1.0.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.recyclerview:recyclerview:1.3.1'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    implementation 'androidx.media:media:1.6.0'
+    implementation 'com.google.android.exoplayer:exoplayer-core:2.19.1'
+    implementation 'com.google.zxing:core:3.5.1'
+}

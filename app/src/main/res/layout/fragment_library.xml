@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ImageButton
+        android:id="@+id/btnMenu"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="10dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="menu"
+        android:elevation="10dp"
+        android:src="@drawable/ic_queue" />
+
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    android:id="@+id/swipe"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingBottom="12dp" />
+
+        <ProgressBar
+            android:id="@+id/progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:indeterminateTint="?attr/colorPrimary"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/empty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:padding="32dp"
+            android:text="@string/empty_library"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="15sp"
+            android:visibility="gone" />
+    </FrameLayout>
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+<LinearLayout
+    android:id="@+id/sideMenu"
+    android:layout_width="280dp"
+    android:layout_height="match_parent"
+    android:layout_gravity="start"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical"
+    android:paddingTop="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="12dp"
+        android:text="MOESHAK MUSIC"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/sidePlaylists"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="14dp"
+        android:text="Playlists"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp"
+        android:background="?attr/selectableItemBackground" />
+
+    <TextView
+        android:id="@+id/sideFavorites"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="14dp"
+        android:text="Favorites"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp"
+        android:background="?attr/selectableItemBackground" />
+
+    <TextView
+        android:id="@+id/sideDownloads"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="14dp"
+        android:text="Downloads"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp"
+        android:background="?attr/selectableItemBackground" />
+
+    <TextView
+        android:id="@+id/sideChannels"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="14dp"
+        android:text="Channels"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp"
+        android:background="?attr/selectableItemBackground" />
+
+    <TextView
+        android:id="@+id/sideChats"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="14dp"
+        android:text="Chats"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp"
+        android:background="?attr/selectableItemBackground" />
+
+    <TextView
+        android:id="@+id/sideProxy"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="14dp"
+        android:text="Proxy"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp"
+        android:background="?attr/selectableItemBackground" />
+
+    <TextView
+        android:id="@+id/sideLog"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="14dp"
+        android:text="Live Log"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp"
+        android:background="?attr/selectableItemBackground" />
+
+    <TextView
+        android:id="@+id/sideSettings"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="14dp"
+        android:text="Settings"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp"
+        android:background="?attr/selectableItemBackground" />
+
+    <TextView
+        android:id="@+id/sideTheme"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="14dp"
+        android:text="Theme"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp"
+        android:background="?attr/selectableItemBackground" />
+</LinearLayout>
+</androidx.drawerlayout.widget.DrawerLayout>

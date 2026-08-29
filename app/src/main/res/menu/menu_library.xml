@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_search"
+        android:icon="@drawable/ic_search"
+        android:title="@string/search"
+        app:actionViewClass="androidx.appcompat.widget.SearchView"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_theme"
+        android:icon="@drawable/ic_theme"
+        android:title="@string/theme"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_chats"
+        android:icon="@drawable/ic_rocket"
+        android:title="@string/chats_title"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_playlists"
+        android:icon="@drawable/ic_settings"
+        android:title="@string/playlists_title"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_downloads"
+        android:icon="@drawable/ic_download"
+        android:title="@string/downloads_title"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_favorites"
+        android:icon="@drawable/ic_heart"
+        android:title="@string/favorites_title"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_cancel"
+        android:icon="@drawable/ic_close"
+        android:title="لغو اسکن"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_log"
+        android:icon="@drawable/ic_refresh"
+        android:title="@string/log_title"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_settings"
+        android:icon="@drawable/ic_settings"
+        android:title="@string/settings"
+        app:showAsAction="always" />
+</menu>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- پالت روز — برگرفته از هویت بصری moeshakteam.ir (تیم موشک) -->
+    <color name="moeshak_bg">#F2F6FA</color>
+    <color name="moeshak_surface">#FFFFFF</color>
+    <color name="moeshak_elevated">#E8EFF6</color>
+    <color name="moeshak_on_bg">#0B141C</color>
+    <color name="moeshak_on_surface">#101C26</color>
+    <color name="moeshak_muted">#5B6B7B</color>
+    <color name="moeshak_accent">#0E7490</color>
+    <color name="moeshak_accent2">#6D28D9</color>
+    <color name="moeshak_on_accent">#FFFFFF</color>
+    <color name="moeshak_grad_start">#7C3AED</color>
+    <color name="moeshak_grad_end">#06B6D4</color>
+    <color name="moeshak_glow">#2A7C3AED</color>
+    <color name="moeshak_bad">#DC2626</color>
+</resources>

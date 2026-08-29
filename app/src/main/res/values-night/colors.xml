@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- پالت شب — پس‌زمینه تاریک #070A0D با المان‌های یخی (هویت moeshakteam.ir) -->
+    <color name="moeshak_bg">#070A0D</color>
+    <color name="moeshak_surface">#0D141B</color>
+    <color name="moeshak_elevated">#17212C</color>
+    <color name="moeshak_on_bg">#E8F2F8</color>
+    <color name="moeshak_on_surface">#DAE7F0</color>
+    <color name="moeshak_muted">#7E91A3</color>
+    <color name="moeshak_accent">#67E8F9</color>
+    <color name="moeshak_accent2">#A78BFA</color>
+    <color name="moeshak_on_accent">#05242B</color>
+    <color name="moeshak_grad_start">#8B5CF6</color>
+    <color name="moeshak_grad_end">#22D3EE</color>
+    <color name="moeshak_glow">#3367E8F9</color>
+    <color name="moeshak_bad">#F87171</color>
+</resources>

@@ -1,0 +1,229 @@
+package ir.moeshakteam.moeshakmusic.ui;
+
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import ir.moeshakteam.moeshakmusic.R;
+import ir.moeshakteam.moeshakmusic.data.DownloadStore;
+import ir.moeshakteam.moeshakmusic.data.Tg;
+import ir.moeshakteam.moeshakmusic.data.Track;
+import ir.moeshakteam.moeshakmusic.player.PlayerManager;
+import ir.moeshakteam.moeshakmusic.util.Ui;
+
+/** لیست دانلودها با گروه‌بندی کانال + دانلود کامل کانال — تیم موشک */
+public class DownloadsFragment extends Fragment {
+
+    private RecyclerView recycler;
+    private TextView empty, tvTitle;
+    private DownloadsAdapter adapter;
+    private final Handler main = new Handler(Looper.getMainLooper());
+    /** حالت انتخاب کانال برای دانلود گروهی */
+    private boolean pickMode;
+    private String pendingChannel;
+
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        return inflater.inflate(R.layout.fragment_downloads, container, false);
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View v, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(v, savedInstanceState);
+        recycler = v.findViewById(R.id.recycler);
+        empty = v.findViewById(R.id.empty);
+        tvTitle = v.findViewById(R.id.tvTitle);
+        adapter = new DownloadsAdapter();
+        recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
+        recycler.setAdapter(adapter);
+
+        v.findViewById(R.id.btnBack).setOnClickListener(x ->
+                requireActivity().onBackPressed());
+        v.findViewById(R.id.btnDownloadChannel).setOnClickListener(x -> pickChannelToDownload());
+        refresh();
+    }
+
+    private void refresh() {
+        List<DownloadStore.Entry> all = DownloadStore.get(requireContext()).all();
+        adapter.setItems(all);
+        empty.setVisibility(all.isEmpty() ? View.VISIBLE : View.GONE);
+        tvTitle.setText(getString(R.string.downloads_title) + " (" + all.size() + ")");
+    }
+
+    /** انتخاب کانال برای دانلود همهٔ موزیک‌هایش */
+    private void pickChannelToDownload() {
+        Tg tg = Tg.get(requireContext());
+        if (tg.library.isEmpty()) {
+            Ui.toast(requireContext(), getString(R.string.scan_zero_hint));
+            return;
+        }
+        LinkedHashMap<String, Integer> groups = new LinkedHashMap<>();
+        Map<String, Long> ids = new LinkedHashMap<>();
+        for (Track t : tg.library) {
+            String key = t.chatTitle == null || t.chatTitle.isEmpty() ? "بدون‌نام" : t.chatTitle;
+            groups.merge(key, 1, Integer::sum);
+            ids.putIfAbsent(key, t.chatId);
+        }
+        List<Map.Entry<String, Integer>> entries = new ArrayList<>(groups.entrySet());
+        entries.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+        String[] names = new String[entries.size()];
+        for (int i = 0; i < entries.size(); i++)
+            names[i] = entries.get(i).getKey() + " (" + entries.get(i).getValue() + " موزیک)";
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(R.string.download_channel)
+                .setItems(names, (d, w) -> {
+                    pendingChannel = entries.get(w).getKey();
+                    long cid = ids.get(pendingChannel);
+                    int total = 0;
+                    for (Track t : tg.library) if (t.chatId == cid && !DownloadStore.get(requireContext()).isDownloaded(t)) total++;
+                    if (total == 0) {
+                        Ui.toast(requireContext(), R.string.channel_all_downloaded);
+                        return;
+                    }
+                    new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                            .setMessage(getString(R.string.download_channel_confirm, pendingChannel, total))
+                            .setPositiveButton(R.string.yes, (d2, w2) -> downloadChannel(cid))
+                            .setNegativeButton(R.string.no, null)
+                            .show();
+                }).show();
+    }
+
+    private void downloadChannel(long chatId) {
+        Tg tg = Tg.get(requireContext());
+        List<Track> queueDl = new ArrayList<>();
+        for (Track t : tg.library) if (t.chatId == chatId && !DownloadStore.get(requireContext()).isDownloaded(t)) queueDl.add(t);
+        Ui.toast(requireContext(), getString(R.string.channel_download_started, queueDl.size()));
+        downloadNext(queueDl, 0);
+    }
+
+    private void downloadNext(List<Track> list, int i) {
+        if (i >= list.size()) {
+            main.post(() -> {
+                Ui.toast(requireContext(), R.string.channel_download_done);
+                refresh();
+            });
+            return;
+        }
+        Track t = list.get(i);
+        Tg.log("⬇️ دانلود کانال [" + (i + 1) + "/" + list.size() + "] " + t.title);
+        Tg.get(requireContext()).download(t.fileId, t.expectedSize, new Tg.DownloadListener() {
+            @Override
+            public void onProgress(int pct) {
+            }
+
+            @Override
+            public void onDone(String path) {
+                DownloadStore.get(requireContext()).mark(t, path);
+                main.post(() -> downloadNext(list, i + 1));
+            }
+
+            @Override
+            public void onError(String msg) {
+                Tg.log("⚠️ خطای دانلود کانال: " + t.title + " → " + msg);
+                main.post(() -> downloadNext(list, i + 1));
+            }
+        });
+    }
+
+    private class DownloadsAdapter extends RecyclerView.Adapter<VH> {
+        private List<DownloadStore.Entry> items = new ArrayList<>();
+
+        void setItems(List<DownloadStore.Entry> list) {
+            items = list;
+            notifyDataSetChanged();
+        }
+
+        @NonNull
+        @Override
+        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            return new VH(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_download, parent, false));
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull VH h, int position) {
+            DownloadStore.Entry e = items.get(h.getBindingAdapterPosition());
+            h.tvTitle.setText(e.title);
+            h.tvSub.setText(e.chatTitle + " • " + Ui.fmtDuration((int) (e.size / 20000)));
+            h.itemView.setOnClickListener(x -> {
+                // پخش از فایل محلی
+                Track t = new Track();
+                t.chatId = parseChatId(e.key);
+                t.messageId = parseMsgId(e.key);
+                t.title = e.title;
+                t.chatTitle = e.chatTitle;
+                t.fileId = e.fileId;
+                t.expectedSize = e.size;
+                t.cachedPath = e.path;
+                List<Track> one = new ArrayList<>();
+                one.add(t);
+                PlayerManager.get(requireContext()).play(one, 0);
+                if (requireActivity() instanceof MainActivity)
+                    ((MainActivity) requireActivity()).openPlayer();
+            });
+            h.itemView.setOnLongClickListener(x -> {
+                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setMessage(getString(R.string.delete_download_confirm, e.title))
+                        .setPositiveButton(R.string.yes, (d, w) -> {
+                            DownloadStore.get(requireContext()).remove(e.key);
+                            refresh();
+                            Ui.toast(requireContext(), "حذف شد از لیست");
+                        })
+                        .setNegativeButton(R.string.no, null).show();
+                return true;
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return items.size();
+        }
+    }
+
+    private static long parseChatId(String key) {
+        int i = key.indexOf(':');
+        try {
+            return Long.parseLong(i > 0 ? key.substring(0, i) : key);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private static long parseMsgId(String key) {
+        int i = key.indexOf(':');
+        try {
+            return Long.parseLong(i > 0 ? key.substring(i + 1) : "0");
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    static class VH extends RecyclerView.ViewHolder {
+        final TextView tvTitle, tvSub;
+
+        VH(@NonNull View v) {
+            super(v);
+            tvTitle = v.findViewById(R.id.tvTitle);
+            tvSub = v.findViewById(R.id.tvSub);
+        }
+    }
+}
