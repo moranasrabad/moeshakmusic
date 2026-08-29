@@ -66,6 +66,7 @@ struct SplashView: View {
 
 struct TabRootView: View {
     @Binding var showPlayer: Bool
+    @ObservedObject private var prefs = Prefs.shared
     @State private var tab = 0
 
     var body: some View {
