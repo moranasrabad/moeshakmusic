@@ -62,7 +62,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cd MoeshakMusic-iOS
           gh release create "ios-v${GITHUB_RUN_NUMBER}" \
             --title "🚀 موشک موزیک iOS — بیلد $GITHUB_RUN_NUMBER" \
             --notes "IPA نام‌امضا — با Sideloadly/AltStore/TrollStore نصب کن" \
