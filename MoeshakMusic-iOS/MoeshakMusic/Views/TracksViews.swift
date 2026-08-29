@@ -45,7 +45,7 @@ struct TrackRow: View {
                         .lineLimit(1)
                 }
                 Spacer()
-                Text((downloaded ? "✓ " : "") + Track.timeString(track.duration))
+                Text(rowDuration)
                     .font(.system(size: 13))
                     .foregroundColor(.moeshakMuted)
                 Button(action: onMenu) {
@@ -63,6 +63,37 @@ struct TrackRow: View {
             art = await ArtLoader.load(track)
         }
     }
+
+    private var rowDuration: String {
+        downloaded ? "✓ " + Track.timeString(track.duration) : Track.timeString(track.duration)
+    }
+}
+
+// MARK: - لیست سادهٔ تراک‌ها (مشترک)
+
+struct TrackListView: View {
+    @EnvironmentObject var player: PlayerManager
+    let tracks: [Track]
+    var onMenu: ((Track) -> Void)? = nil
+
+    var body: some View {
+        List {
+            ForEach(Array(tracks.enumerated()), id: \.element.id) { pair in
+                let i = pair.offset
+                let t = pair.element
+                TrackRow(track: t,
+                         isNow: t.id == player.current?.id,
+                         downloaded: Store.shared.downloads.isDownloaded(t),
+                         index: i + 1,
+                         onPlay: { player.play(tracks, at: i) },
+                         onMenu: { onMenu?(t) })
+                .listRowBackground(Color.clear)
+                .listRowSeparatorTint(Color.moeshakOutline)
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+    }
 }
 
 // MARK: - آهنگ‌ها
@@ -72,55 +103,29 @@ struct TracksView: View {
     @EnvironmentObject var player: PlayerManager
     @State private var query = ""
 
-    var filtered: [Track] {
-        query.isEmpty ? library.library
-            : library.library.filter {
-                ($0.title + " " + $0.performer + " " + $0.chatTitle).localizedCaseInsensitiveContains(query)
-            }
+    private var filtered: [Track] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return library.library }
+        let n = q.lowercased()
+        return library.library.filter { t in
+            t.title.lowercased().contains(n)
+                || t.performer.lowercased().contains(n)
+                || t.chatTitle.lowercased().contains(n)
+        }
     }
 
     var body: some View {
         VStack(spacing: 0) {
             HeaderView(title: "آهنگ‌ها", showSearch: true, query: $query)
             if filtered.isEmpty {
-                EmptyStateView(icon: "music.note", text: "کتابخانه‌ات خالیه 🎵\nاز تب اسکن اسکن کن و به کتابخانه اضافه کن!")
+                EmptyStateView(icon: "music.note",
+                               text: "کتابخانه‌ات خالیه 🎵\nاز تب اسکن اسکن کن و به کتابخانه اضافه کن!")
             } else {
-                List {
-                    ForEach(Array(filtered.enumerated()), id: \.element.id) { i, t in
-                        TrackRow(track: t,
-                                 isNow: t.id == player.current?.id,
-                                 downloaded: Store.shared.downloads.isDownloaded(t),
-                                 index: i + 1,
-                                 onPlay: { play(t, at: i) },
-                                 onMenu: { menu(t) })
-                        .listRowBackground(Color.clear)
-                        .listRowSeparatorTint(Color.moeshakOutline)
-                    }
+                TrackListView(tracks: filtered) { t in
+                    UIHelpers.trackMenu(t)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
             }
         }
-    }
-
-    private func play(_ t: Track, at i: Int) {
-        player.play(filtered, at: i)
-    }
-
-    private func menu(_ t: Track) {
-        let alert = UIAlertController(title: t.title, message: nil, preferredStyle: .actionSheet)
-        let dl = Store.shared.downloads.isDownloaded(t)
-        alert.addAction(UIAlertAction(title: dl ? "✓ دانلود شده" : "⬇️ دانلود", style: .default) { _ in
-            if !dl { DownloadService.shared.download(t) }
-        })
-        alert.addAction(UIAlertAction(title: "➕ افزودن به پلی‌لیست", style: .default) { _ in
-            UIHelpers.pickPlaylist(for: t)
-        })
-        alert.addAction(UIAlertAction(title: "🔀 افزودن به صف", style: .default) { _ in
-            player.addToQueue(t)
-        })
-        alert.addAction(UIAlertAction(title: "انصراف", style: .cancel))
-        UIApplication.topViewController()?.present(alert, animated: true)
     }
 }
 
@@ -128,14 +133,16 @@ struct TracksView: View {
 
 struct FavoritesView: View {
     @EnvironmentObject var library: LibraryManager
-    @EnvironmentObject var player: PlayerManager
     @State private var query = ""
     @ObservedObject private var favs = Store.shared.favorites
 
-    var tracks: [Track] {
-        let favs = library.library.filter { Store.shared.favorites.contains($0) }
-        return query.isEmpty ? favs
-            : favs.filter { ($0.title + " " + $0.performer).localizedCaseInsensitiveContains(query) }
+    private var tracks: [Track] {
+        let favs = library.library.filter { Store.shared.favorites.keys.contains($0.id) }
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return favs }
+        return favs.filter { t in
+            t.title.lowercased().contains(q) || t.performer.lowercased().contains(q)
+        }
     }
 
     var body: some View {
@@ -144,19 +151,7 @@ struct FavoritesView: View {
             if tracks.isEmpty {
                 EmptyStateView(icon: "heart", text: "هنوز فیوریتی نداری ❤️\nدر پلیر روی قلب بزن")
             } else {
-                List {
-                    ForEach(Array(tracks.enumerated()), id: \.element.id) { i, t in
-                        TrackRow(track: t, isNow: t.id == player.current?.id,
-                                 downloaded: Store.shared.downloads.isDownloaded(t),
-                                 index: i + 1,
-                                 onPlay: { player.play(tracks, at: i) },
-                                 onMenu: { _ in })
-                        .listRowBackground(Color.clear)
-                        .listRowSeparatorTint(Color.moeshakOutline)
-                    }
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+                TrackListView(tracks: tracks)
             }
         }
     }
@@ -166,7 +161,6 @@ struct FavoritesView: View {
 
 struct ScanView: View {
     @EnvironmentObject var library: LibraryManager
-    @EnvironmentObject var player: PlayerManager
     @State private var depth = 100
 
     var body: some View {
@@ -174,68 +168,137 @@ struct ScanView: View {
             HeaderView(title: "اسکن", showSearch: false)
             ScrollView {
                 VStack(spacing: 14) {
-                    // کارت کنترل
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(library.scanState.running ? "در حال اسکن چت‌های تلگرام…" : "آمادهٔ اسکن — عمق را انتخاب کن 🔍")
-                            .font(.system(size: 16, weight: .bold)).foregroundColor(.moeshakText)
-                        if library.scanState.running {
-                            Text("🔍 \(library.scanState.chatsScanned) چت • 🎵 \(library.scanState.found) آهنگ • ⏱ \(library.scanState.seconds) ثانیه")
-                                .font(.system(size: 13)).foregroundColor(.moeshakMuted)
-                            ProgressView().tint(Color(hex: 0x22D3EE))
-                        } else if library.scanState.chatsScanned > 0 {
-                            Text(library.scanState.cancelled ? "⏹ لغو شد" : "🏁 تمام شد")
-                                .font(.system(size: 13)).foregroundColor(.moeshakMuted)
-                        }
-                        // چیپ‌های عمق
-                        HStack(spacing: 8) {
-                            DepthChip(text: "۵۰", active: depth == 50) { depth = 50 }
-                            DepthChip(text: "۱۰۰", active: depth == 100) { depth = 100 }
-                            DepthChip(text: "۳۰۰", active: depth == 300) { depth = 300 }
-                            DepthChip(text: "همه", active: depth == 3000) { depth = 3000 }
-                        }
-                        Button {
-                            if library.scanState.running { library.cancelScan() }
-                            else { library.startScan(depth: depth) }
-                        } label: {
-                            Text(library.scanState.running ? "⏹ لغو اسکن" : "🔍 شروع اسکن").moeshakButton()
-                        }
-                    }
-                    .padding(16)
-                    .background(RoundedRectangle(cornerRadius: 20).fill(Color.moeshakCard)
-                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.moeshakOutline, lineWidth: 1)))
-                    .padding(.horizontal, 14)
-
-                    // دکمه‌های نتیجه
+                    scanCard
                     if !library.scanResults.isEmpty {
-                        Button {
-                            let n = library.addScanResultsToLibrary()
-                            UIHelpers.toast(n > 0 ? "\(n) آهنگ به کتابخانه اضافه شد ✓" : "همه از قبل در کتابخانه بودند")
-                        } label: {
-                            Text("➕ افزودن همه به کتابخانه (\(library.scanResults.count))").moeshakButton()
-                        }
-                        .padding(.horizontal, 14)
-                        Button("🗑 پاک کردن نتایج") { library.clearScanResults() }
-                            .font(.system(size: 13)).foregroundColor(.moeshakMuted)
+                        addAllButton
+                        clearButton
                     }
-
-                    // نتایج زنده
-                    if library.scanResults.isEmpty {
-                        EmptyStateView(icon: "magnifyingglass", text: "هنوز اسکنی انجام نشده\nدکمهٔ «شروع اسکن» را بزن 🚀")
-                    } else {
-                        LazyVStack(spacing: 0) {
-                            ForEach(Array(library.scanResults.enumerated()), id: \.element.id) { i, t in
-                                TrackRow(track: t, isNow: t.id == player.current?.id,
-                                         downloaded: Store.shared.downloads.isDownloaded(t),
-                                         index: i + 1,
-                                         onPlay: { player.play(library.scanResults, at: i) },
-                                         onMenu: { _ in })
-                            }
-                        }
-                    }
+                    resultsList
                 }
                 .padding(.vertical, 8)
             }
         }
+    }
+
+    // MARK: کارت کنترل اسکن
+
+    private var scanCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(stateTitle)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.moeshakText)
+
+            if library.scanState.running {
+                Text(progressLine)
+                    .font(.system(size: 13))
+                    .foregroundColor(.moeshakMuted)
+                ProgressView().tint(Color(hex: 0x22D3EE))
+            } else if library.scanState.chatsScanned > 0 {
+                Text(finishLine)
+                    .font(.system(size: 13))
+                    .foregroundColor(.moeshakMuted)
+            }
+
+            HStack(spacing: 8) {
+                DepthChip(text: "۵۰", active: depth == 50) { depth = 50 }
+                DepthChip(text: "۱۰۰", active: depth == 100) { depth = 100 }
+                DepthChip(text: "۳۰۰", active: depth == 300) { depth = 300 }
+                DepthChip(text: "همه", active: depth == 3000) { depth = 3000 }
+            }
+
+            Button(action: toggleScan) {
+                Text(library.scanState.running ? "⏹ لغو اسکن" : "🔍 شروع اسکن")
+                    .moeshakButton()
+            }
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 20).fill(Color.moeshakCard)
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.moeshakOutline, lineWidth: 1)))
+        .padding(.horizontal, 14)
+    }
+
+    private var stateTitle: String {
+        if library.scanState.running { return "در حال اسکن چت‌های تلگرام…" }
+        return "آمادهٔ اسکن — عمق را انتخاب کن 🔍"
+    }
+
+    private var progressLine: String {
+        let c = library.scanState.chatsScanned
+        let f = library.scanState.found
+        let s = library.scanState.seconds
+        return "🔍 \(c) چت • 🎵 \(f) آهنگ • ⏱ \(s) ثانیه"
+    }
+
+    private var finishLine: String {
+        library.scanState.cancelled ? "⏹ اسکن لغو شد" : "🏁 تمام شد"
+    }
+
+    private func toggleScan() {
+        if library.scanState.running {
+            library.cancelScan()
+        } else {
+            library.startScan(depth: depth)
+        }
+    }
+
+    // MARK: دکمه‌های نتیجه
+
+    private var addAllButton: some View {
+        Button {
+            let n = library.addScanResultsToLibrary()
+            let msg = n > 0 ? "\(n) آهنگ به کتابخانه اضافه شد ✓" : "همه از قبل در کتابخانه بودند"
+            UIHelpers.toast(msg)
+        } label: {
+            Text("➕ افزودن همه به کتابخانه (\(library.scanResults.count))")
+                .moeshakButton()
+        }
+        .padding(.horizontal, 14)
+    }
+
+    private var clearButton: some View {
+        Button("🗑 پاک کردن نتایج") { library.clearScanResults() }
+            .font(.system(size: 13))
+            .foregroundColor(.moeshakMuted)
+    }
+
+    // MARK: نتایج زنده
+
+    @ViewBuilder
+    private var resultsList: some View {
+        if library.scanResults.isEmpty {
+            EmptyStateView(icon: "magnifyingglass",
+                           text: "هنوز اسکنی انجام نشده\nدکمهٔ «شروع اسکن» را بزن 🚀")
+        } else {
+            VStack(spacing: 0) {
+                ForEach(Array(library.scanResults.enumerated()), id: \.element.id) { pair in
+                    let i = pair.offset
+                    let t = pair.element
+                    ScanRow(track: t, index: i + 1)
+                }
+            }
+        }
+    }
+}
+
+/// ردیف نتیجهٔ اسکن — پخش با لمس، منو با ⋯
+private struct ScanRow: View {
+    @EnvironmentObject var player: PlayerManager
+    let track: Track
+    let index: Int
+
+    var body: some View {
+        TrackRow(track: track,
+                 isNow: track.id == player.current?.id,
+                 downloaded: Store.shared.downloads.isDownloaded(track),
+                 index: index,
+                 onPlay: {
+                     // نتایج زنده ممکن است وسط پخش عوض شوند — از کپی لحظه‌ای پخش کن
+                     let current = LibraryManager.shared.scanResults
+                     if let idx = current.firstIndex(where: { $0.id == track.id }) {
+                         player.play(current, at: idx)
+                     }
+                 },
+                 onMenu: { UIHelpers.trackMenu(track) })
     }
 }
 

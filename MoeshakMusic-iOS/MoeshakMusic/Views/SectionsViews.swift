@@ -34,7 +34,7 @@ struct HeaderView: View {
             if showSearch {
                 HStack {
                     Image(systemName: "magnifyingglass").foregroundColor(.moeshakMuted)
-                    TextField("جستجوی آهنگ…", text: $query)
+                    TextField("جستجوی آهنگ…", text: query)
                         .foregroundColor(.moeshakText)
                 }
                 .padding(12)

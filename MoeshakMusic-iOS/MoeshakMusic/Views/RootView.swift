@@ -93,7 +93,7 @@ struct TabRootView: View {
         }
         .tint(Color(hex: 0x22D3EE))
         .fullScreenCover(isPresented: $showPlayer) {
-            PlayerView { showPlayer = false }
+            PlayerView()
         }
     }
 }

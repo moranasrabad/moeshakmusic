@@ -40,7 +40,7 @@ enum ChatService {
     static func loadAllChats() async -> [(id: Int64, title: String, type: String)] {
         await Task.detached {
             var out: [(id: Int64, title: String, type: String)] = []
-            let me = UserDefaults.standard.int64(forKey: "my_user_id")
+            let me = Int64(UserDefaults.standard.integer(forKey: "my_user_id"))
             for listType in ["chatListMain", "chatListArchive"] {
                 while true {
                     do { _ = try TDJson.syncDict(["@type": "loadChats",
@@ -161,4 +161,26 @@ enum UIHelpers {
 
 extension Notification.Name {
     static let moeshakRestart = Notification.Name("moeshak.restart")
+}
+
+extension UIHelpers {
+    /// منوی ⋯ تراک: دانلود / پلی‌لیست / فیوریت — تیم موشک
+    @MainActor
+    static func trackMenu(_ t: Track) {
+        guard let vc = UIApplication.topViewController() else { return }
+        let dl = Store.shared.downloads.isDownloaded(t)
+        let alert = UIAlertController(title: t.title, message: nil, preferredStyle: .actionSheet)
+        alert.addAction(UIAlertAction(title: dl ? "✓ دانلود شده" : "⬇️ دانلود", style: .default) { _ in
+            if !dl { DownloadService.shared.download(t) }
+        })
+        alert.addAction(UIAlertAction(title: "➕ افزودن به پلی‌لیست", style: .default) { _ in
+            pickPlaylist(for: t)
+        })
+        alert.addAction(UIAlertAction(title: "❤️ فیوریت", style: .default) { _ in
+            Store.shared.favorites.toggle(t)
+            LibraryManager.shared.persistFavoriteTracks()
+        })
+        alert.addAction(UIAlertAction(title: "انصراف", style: .cancel))
+        vc.present(alert, animated: true)
+    }
 }

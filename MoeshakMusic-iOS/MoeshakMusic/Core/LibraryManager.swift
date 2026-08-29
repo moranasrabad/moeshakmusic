@@ -1,5 +1,9 @@
 import Foundation
 
+/// پرچم لغو اسکن — file-scope (خارج از actor isolation)
+private let ScanCancelLock = NSLock()
+private var ScanCancelled = false
+
 /// موتور اسکن — همان v3 اندروید (تاریخچهٔ مستقیم + JSON خام) — تیم موشک
 @MainActor
 final class LibraryManager: ObservableObject {
@@ -12,6 +16,7 @@ final class LibraryManager: ObservableObject {
     @Published var scanResults: [Track] = []
     @Published var scanState = ScanState.idle
     @Published var chatPhotoFiles: [Int64: Int] = [:]
+    private var chatTitles: [Int64: String] = [:]
 
     struct ScanState: Equatable {
         var running = false
@@ -25,12 +30,10 @@ final class LibraryManager: ObservableObject {
 
     static let shared = LibraryManager()
 
-    /// پرچم لغو — بین thread ها
-    private static let cancelLock = NSLock()
-    private static var _cancelled = false
+    /// پرچم لغو — بین thread ها (global تا actor-isolated نشود)
     nonisolated static var cancelRequested: Bool {
-        get { cancelLock.lock(); defer { cancelLock.unlock() }; return _cancelled }
-        set { cancelLock.lock(); _cancelled = newValue; cancelLock.unlock() }
+        get { ScanCancelLock.lock(); defer { ScanCancelLock.unlock() }; return ScanCancelled }
+        set { ScanCancelLock.lock(); ScanCancelled = newValue; ScanCancelLock.unlock() }
     }
 
     private var restored = false
@@ -238,7 +241,7 @@ private enum ScanEngine {
         }
         var seen = Set<Int64>()
         var out: [Int64] = []
-        let me = UserDefaults.standard.int64(forKey: "my_user_id")
+        let me = Int64(UserDefaults.standard.integer(forKey: "my_user_id"))
         if me != 0, ids.contains(me) { out.append(me); seen.insert(me) }
         for id in ids where !seen.contains(id) {
             seen.insert(id); out.append(id)
@@ -251,7 +254,7 @@ private enum ScanEngine {
         var out: [Track] = []
         var seen = Set<String>()
         var from: Int64 = 0
-        let myId = UserDefaults.standard.int64(forKey: "my_user_id")
+        let myId = Int64(UserDefaults.standard.integer(forKey: "my_user_id"))
         let title = chatId == myId ? "سیو ⭐" : chatTitle
 
         for _ in 0..<6 {

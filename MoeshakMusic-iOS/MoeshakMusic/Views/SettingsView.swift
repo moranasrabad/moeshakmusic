@@ -190,21 +190,20 @@ struct SettingsView: View {
     private func ping(_ e: ProxyEntry) {
         Task.detached {
             let ms: Int
-            if let r = try? await Task.detached(execute: {
-                try TDJson.syncDict(["@type": "pingProxy",
-                                     "proxy": ["@type": "proxy", "server": e.server,
-                                               "port": e.port,
-                                               "secret": e.secret ?? ""]])
-            }).value, let s = r["seconds"] as? Double {
-                ms = Int(s * 1000)
-            } else { ms = -2 }
+            do {
+                let r = try TDJson.syncDict(["@type": "pingProxy",
+                                             "proxy": ["@type": "proxy", "server": e.server,
+                                                       "port": e.port, "secret": e.secret]])
+                ms = Int((r["seconds"] as? Double ?? 0) * 1000)
+            } catch { ms = -2 }
             await MainActor.run {
-                var list = prefs.proxies
+                var list = Prefs.shared.proxies
                 if let i = list.firstIndex(where: { $0.id == e.id }) { list[i].pingMs = ms }
-                prefs.proxies = list
+                Prefs.shared.proxies = list
             }
         }
     }
+
 
     private func deleteProxy(_ e: ProxyEntry) {
         prefs.proxies.removeAll { $0.id == e.id }

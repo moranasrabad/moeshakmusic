@@ -38,8 +38,10 @@ struct MoeshakMusicApp: App {
                 Task.detached {
                     for _ in 0..<24 {
                         try? await Task.sleep(nanoseconds: 2_000_000_000)
-                        if Session.shared.state == .ready {
-                            let uid = await Session.shared.myUserId
+                        let (ready, uid): (Bool, Int64) = await MainActor.run {
+                            (Session.shared.state == .ready, Session.shared.myUserId)
+                        }
+                        if ready {
                             if uid != 0 { UserDefaults.standard.set(uid, forKey: "my_user_id") }
                             break
                         }
