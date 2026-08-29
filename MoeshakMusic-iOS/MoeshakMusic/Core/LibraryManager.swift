@@ -313,9 +313,9 @@ private enum ScanEngine {
                                               "chat_id": old.chatId,
                                               "message_id": old.messageId]),
               (msg["@type"] as? String) != "error" else { return nil }
-        var t = Track.fromMessage(msg, chatId: old.chatId,
-                                  chatTitle: old.chatTitle.isEmpty ? "سیو ⭐" : old.chatTitle)
-        t?.thumbFileId = old.thumbFileId != 0 ? old.thumbFileId : (t?.thumbFileId ?? 0)
+        guard var t = Track.fromMessage(msg, chatId: old.chatId,
+                                        chatTitle: old.chatTitle.isEmpty ? "سیو ⭐" : old.chatTitle) else { return nil }
+        t.thumbFileId = old.thumbFileId != 0 ? old.thumbFileId : t.thumbFileId
         return t
     }
 }
