@@ -26,7 +26,7 @@ import ir.moeshakteam.moeshakmusic.R;
 import ir.moeshakteam.moeshakmusic.data.Track;
 import ir.moeshakteam.moeshakmusic.data.Tg;
 import ir.moeshakteam.moeshakmusic.util.Ui;
-import ir.moeshakteam.moeshakmusic.viz.VisualizerView;
+import ir.moeshakteam.moeshakmusic.viz.NeonVisualizer;
 
 /**
  * مدیریت پخش موزیک با ExoPlayer — استریم مستقیم + کش محلی + ویژوالایزر. تیم موشک
@@ -72,6 +72,8 @@ public final class PlayerManager {
 
     public void toggleFavorite(Track t) {
         if (!FAVORITES.remove(key(t))) FAVORITES.add(key(t));
+        // ذخیرهٔ دائمی فیوریت‌ها
+        ir.moeshakteam.moeshakmusic.data.Tg.get(ctx).saveFavorites();
     }
 
     /** صف علاقه‌مندی‌ها بر اساس ترتیب کتابخانه */
@@ -115,7 +117,7 @@ public final class PlayerManager {
     }
     private final Handler main = new Handler(Looper.getMainLooper());
     private Visualizer visualizer;
-    private VisualizerView vizView;
+    private NeonVisualizer vizView;
     private int vizSessionId;
 
     private final Runnable ticker = new Runnable() {
@@ -140,6 +142,9 @@ public final class PlayerManager {
         @Override
         public void onIsPlayingChanged(boolean isPlaying) {
             notifyState();
+            // ویژوالایزر: با پخش/توقف همگام شود + اتصال session را دوباره امتحان کن
+            if (vizView != null) vizView.setPlaying(isPlaying);
+            if (isPlaying && visualizer == null) main.postDelayed(PlayerManager.this::attachVisualizer, 250);
             if (isPlaying) {
                 main.removeCallbacks(ticker);
                 main.post(ticker);
@@ -178,6 +183,9 @@ public final class PlayerManager {
             DataSource.Factory factory = new AppDataSource.Factory(ctx);
             player = new ExoPlayer.Builder(ctx, new DefaultMediaSourceFactory(factory)).build();
             player.addListener(exoListener);
+            // ویژوالایزر بعد از آماده شدن session صوتی وصل شود
+            main.postDelayed(this::attachVisualizer, 400);
+            main.postDelayed(this::attachVisualizer, 1200);
         }
         return player;
     }
@@ -264,6 +272,21 @@ public final class PlayerManager {
         else pl.play();
     }
 
+    /** توقف کامل — هنگام خروج/خاتمهٔ نشست (صف خالی + توقف پخش) */
+    public void stopAll() {
+        try {
+            if (player != null) {
+                player.pause();
+                player.clearMediaItems();
+            }
+        } catch (Throwable ignored) {
+        }
+        queue.clear();
+        index = -1;
+        notifyState();
+        ir.moeshakteam.moeshakmusic.player.PlaybackService.update(ctx);
+    }
+
     public void next() {
         if (queue.isEmpty()) return;
         if (repeatMode == 2) { // تکرار یک آهنگ
@@ -344,12 +367,16 @@ public final class PlayerManager {
 
     // ---------- ویژوالایزر ----------
 
-    public void setVisualizerView(VisualizerView v) {
+    public void setVisualizerView(NeonVisualizer v) {
         vizView = v;
-        if (v != null) attachVisualizer();
+        if (v != null) {
+            v.setPlaying(isPlaying());
+            attachVisualizer();
+        }
     }
 
-    private void attachVisualizer() {
+    /** اتصال Visualizer واقعی به session صوتی — نیازمند دسترسی RECORD_AUDIO */
+    public void attachVisualizer() {
         if (player == null || vizView == null) return;
         boolean micGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO)
                 == PackageManager.PERMISSION_GRANTED;

@@ -43,6 +43,10 @@ app/src/main/java/
 - موتور اسکن با **raw JSON** کار می‌کند (بدون reflection) — پایدار در برابر تغییر کدک.
 - `TdlibDataSource` برای ExoPlayer بازه‌های ۵۱۲KB را sync می‌کند.
 
+## 📥 دانلود APK + تاریخچه تغییرات
+- [ANDROID.md](ANDROID.md) — آخرین APK و نصب
+- [CHANGELOG.md](CHANGELOG.md) — تغییرات همهٔ نسخه‌ها
+
 ## 🔧 بیلد
 
 **پیش‌نیازها:** JDK 17 · Android SDK (platform 33 + build-tools 33.0.2) · Gradle 7.6.4 (AGP 7.4.2)

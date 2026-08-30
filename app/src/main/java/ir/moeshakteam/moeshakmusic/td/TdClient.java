@@ -46,6 +46,13 @@ public final class TdClient {
     private static volatile int clientId = -1;
     private static volatile UpdateHandler updates;
     private static Handler main;
+    /** وقتی نشست در حال خاتمه است، هیچ درخواستی به کلاینتِ در حال مرگ نرود (ضدکرش نیتیو) */
+    private static volatile boolean gated = false;
+
+    /** قفل/بازکردن درگاه ارسال — هنگام LOGGING_OUT بسته می‌شود */
+    public static void gate(boolean on) {
+        gated = on;
+    }
 
     private static final Map<Long, ResultHandler> uiHandlers = new ConcurrentHashMap<>();
     private static final Map<Long, ResultHandler> syncHandlers = new ConcurrentHashMap<>();
@@ -60,6 +67,10 @@ public final class TdClient {
     /** ارسال با پاسخ خام — هیچ پارسی انجام نمی‌شود */
     public static void sendRaw(TdApi.Function<?> fn, RawHandler h) {
         long extra = ids.getAndIncrement();
+        if (gated) {
+            if (h != null) h.onResult(new JSONObject());
+            return;
+        }
         if (h != null) rawHandlers.put(extra, h);
         String req;
         try {
@@ -76,6 +87,7 @@ public final class TdClient {
     public static JSONObject syncRaw(TdApi.Function<?> fn) throws TdError {
         if (Looper.myLooper() == Looper.getMainLooper())
             throw new IllegalStateException("syncRaw on main thread");
+        if (gated) throw new TdError(503, "client unavailable (logging out)");
         long extra = ids.getAndIncrement();
         CountDownLatch latch = new CountDownLatch(1);
         final JSONObject[] out = new JSONObject[1];
@@ -146,6 +158,11 @@ public final class TdClient {
 
     public static void send(TdApi.Function<?> fn, ResultHandler h) {
         long extra = ids.getAndIncrement();
+        if (gated) {
+            final TdApi.Error err = new TdApi.Error(503, "client unavailable");
+            if (h != null && main != null) main.post(() -> h.onResult(err));
+            return;
+        }
         if (h != null) uiHandlers.put(extra, h);
         String req;
         try {
