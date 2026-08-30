@@ -1603,14 +1603,4 @@ public final class Tg implements TdClient.UpdateHandler {
             raf.close();
         }
     }
-};
-            raf.seek(offset);
-            int n = (int) Math.min(count, len - offset);
-            byte[] out = new byte[n];
-            raf.readFully(out);
-            return out;
-        } finally {
-            raf.close();
-        }
-    }
 }
