@@ -21,6 +21,8 @@ public class Track {
     public int fileId;
     public long expectedSize;
     public int thumbFileId;
+    /** فایل عکس کوچک چت/کانال — برای تامبنیل وقتی کاور آلبوم نیست */
+    public int chatPhotoFileId;
     public byte[] artMini; // کوچک‌تصویر آلبوم (فوری)
     public Bitmap artBitmap; // دیکد شده
     public volatile String cachedPath;
