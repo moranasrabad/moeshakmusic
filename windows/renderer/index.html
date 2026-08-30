@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' moeshak-stream: moeshak-local: moeshak-art:; img-src 'self' data: moeshak-art:; media-src 'self' moeshak-stream: moeshak-local:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <title>موشک موزیک</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="login" class="screen hidden">
+    <div class="login-card">
+      <img src="../../assets/icon.png" class="login-logo" alt="Moeshak" />
+      <h1 data-i18n="appName">موشک موزیک</h1>
+      <p class="sub" data-i18n="loginSub">پلیر موزیک متصل به تلگرام — مستقیم با TDLib</p>
+
+      <div class="login-tabs">
+        <button id="tabPhone" class="seg active" data-i18n="phone">شماره تلفن</button>
+        <button id="tabQr" class="seg" data-i18n="qrLogin">ورود با QR</button>
+      </div>
+
+      <div id="loginPhone">
+        <input id="phoneInput" placeholder="+98912..." dir="ltr" />
+        <button id="phoneNext" class="btn primary" data-i18n="next">ادامه</button>
+      </div>
+
+      <div id="loginCode" class="hidden">
+        <p class="hint" data-i18n="codeSent">کد تأیید به تلگرام فرستاده شد</p>
+        <input id="codeInput" placeholder="•••••" dir="ltr" maxlength="8" />
+        <button id="codeNext" class="btn primary" data-i18n="next">ادامه</button>
+      </div>
+
+      <div id="loginPassword" class="hidden">
+        <p class="hint" id="passwordHint"></p>
+        <input id="passwordInput" type="password" placeholder="Password" dir="ltr" />
+        <button id="passwordNext" class="btn primary" data-i18n="next">ادامه</button>
+      </div>
+
+      <div id="loginRegister" class="hidden">
+        <input id="firstNameInput" placeholder="First name" dir="ltr" />
+        <input id="lastNameInput" placeholder="Last name" dir="ltr" />
+        <button id="registerNext" class="btn primary" data-i18n="signUp">ثبت‌نام</button>
+      </div>
+
+      <div id="loginQr" class="hidden">
+        <p class="hint" data-i18n="qrHint">تلگرام ← تنظیمات ← دستگاه‌ها ← اتصال دستگاه ← اسکن کن</p>
+        <div id="qrBox"><img id="qrImg" alt="QR" /></div>
+        <button id="qrRefresh" class="btn ghost" data-i18n="refresh">تازه‌سازی</button>
+      </div>
+
+      <p id="loginError" class="error hidden"></p>
+      <p class="status-line" id="connStatus"></p>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app" class="screen hidden">
+    <aside id="sidebar">
+      <div class="brand">
+        <img src="../../assets/icon.png" alt="" />
+        <span>موشک موزیک</span>
+      </div>
+      <nav id="nav"></nav>
+      <div class="sidebar-foot">
+        <div id="meBox" class="me-box hidden"></div>
+        <button id="logoutBtn" class="btn ghost small" data-i18n="logout">خروج</button>
+      </div>
+    </aside>
+
+    <main id="content">
+      <header id="topbar">
+        <h2 id="pageTitle"></h2>
+        <div id="topActions"></div>
+      </header>
+      <div id="tabBody" class="tab-body"></div>
+    </main>
+
+    <!-- player bar -->
+    <div id="playerBar" class="player-bar hidden">
+      <div class="pb-left">
+        <div id="pbCover" class="pb-cover"></div>
+        <div class="pb-meta">
+          <div id="pbTitle" class="pb-title">—</div>
+          <div id="pbArtist" class="pb-artist"></div>
+        </div>
+      </div>
+      <div class="pb-center">
+        <div class="pb-controls">
+          <button id="pbShuffle" class="ic" title="shuffle">⤨</button>
+          <button id="pbPrev" class="ic big">⏮</button>
+          <button id="pbPlay" class="ic big">▶</button>
+          <button id="pbNext" class="ic big">⏭</button>
+          <button id="pbRepeat" class="ic">🔁</button>
+        </div>
+        <div class="pb-progress">
+          <span id="pbCur">0:00</span>
+          <input type="range" id="pbSeek" min="0" max="1000" value="0" />
+          <span id="pbDur">0:00</span>
+        </div>
+      </div>
+      <div class="pb-right">
+        <button id="pbExpand" class="ic">⤢</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOW PLAYING overlay -->
+  <div id="np" class="np hidden">
+    <button id="npClose" class="np-close">✕</button>
+    <canvas id="viz" width="640" height="200"></canvas>
+    <div id="npCover" class="np-cover"></div>
+    <div id="npTitle" class="np-title">—</div>
+    <div id="npArtist" class="np-artist"></div>
+    <div class="np-progress">
+      <span id="npCur">0:00</span>
+      <input type="range" id="npSeek" min="0" max="1000" value="0" />
+      <span id="npDur">0:00</span>
+    </div>
+    <div class="np-controls">
+      <button id="npShuffle" class="ic big">⤨</button>
+      <button id="npPrev" class="ic big">⏮</button>
+      <button id="npPlay" class="ic big">▶</button>
+      <button id="npNext" class="ic big">⏭</button>
+      <button id="npRepeat" class="ic big">🔁</button>
+    </div>
+  </div>
+
+  <audio id="audio"></audio>
+  <script src="app.js"></script>
+</body>
+</html>
