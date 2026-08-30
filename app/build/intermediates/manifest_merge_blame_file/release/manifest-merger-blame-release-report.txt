@@ -1,0 +1,131 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="ir.moeshakteam.moeshakmusic"
+4    android:versionCode="82"
+5    android:versionName="5.10.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+8-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml
+9        android:targetSdkVersion="33" />
+9-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:4:5-67
+11-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:4:22-64
+12    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+12-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:5:5-79
+12-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:5:22-76
+13    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+13-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:6:5-71
+13-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:6:22-68
+14    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+14-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:7:5-77
+14-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:7:22-74
+15    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+15-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:8:5-77
+15-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:8:22-74
+16    <uses-permission android:name="android.permission.WAKE_LOCK" />
+16-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:9:5-68
+16-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:9:22-65
+17
+18    <permission
+18-->[androidx.core:core:1.9.0] /home/user/.gradle/caches/transforms-3/6e1cadeb405580b47ec7e1dc9af54fc3/transformed/core-1.9.0/AndroidManifest.xml:22:5-24:47
+19        android:name="ir.moeshakteam.moeshakmusic.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+19-->[androidx.core:core:1.9.0] /home/user/.gradle/caches/transforms-3/6e1cadeb405580b47ec7e1dc9af54fc3/transformed/core-1.9.0/AndroidManifest.xml:23:9-81
+20        android:protectionLevel="signature" />
+20-->[androidx.core:core:1.9.0] /home/user/.gradle/caches/transforms-3/6e1cadeb405580b47ec7e1dc9af54fc3/transformed/core-1.9.0/AndroidManifest.xml:24:9-44
+21
+22    <uses-permission android:name="ir.moeshakteam.moeshakmusic.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+22-->[androidx.core:core:1.9.0] /home/user/.gradle/caches/transforms-3/6e1cadeb405580b47ec7e1dc9af54fc3/transformed/core-1.9.0/AndroidManifest.xml:26:5-97
+22-->[androidx.core:core:1.9.0] /home/user/.gradle/caches/transforms-3/6e1cadeb405580b47ec7e1dc9af54fc3/transformed/core-1.9.0/AndroidManifest.xml:26:22-94
+23
+24    <application
+24-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:11:5-43:19
+25        android:name="ir.moeshakteam.moeshakmusic.App"
+25-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:12:9-28
+26        android:allowBackup="true"
+26-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:13:9-35
+27        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+27-->[androidx.core:core:1.9.0] /home/user/.gradle/caches/transforms-3/6e1cadeb405580b47ec7e1dc9af54fc3/transformed/core-1.9.0/AndroidManifest.xml:28:18-86
+28        android:extractNativeLibs="false"
+29        android:icon="@mipmap/ic_launcher"
+29-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:14:9-43
+30        android:label="@string/app_name"
+30-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:16:9-41
+31        android:roundIcon="@mipmap/ic_launcher_round"
+31-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:15:9-54
+32        android:supportsRtl="true"
+32-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:17:9-35
+33        android:theme="@style/Theme.Moeshak" >
+33-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:18:9-45
+34        <activity
+34-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:20:9-29:20
+35            android:name="ir.moeshakteam.moeshakmusic.ui.MainActivity"
+35-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:21:13-44
+36            android:exported="true"
+36-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:22:13-36
+37            android:launchMode="singleTask"
+37-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:23:13-44
+38            android:windowSoftInputMode="adjustResize" >
+38-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:24:13-55
+39            <intent-filter>
+39-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:25:13-28:29
+40                <action android:name="android.intent.action.MAIN" />
+40-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:26:17-69
+40-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:26:25-66
+41
+42                <category android:name="android.intent.category.LAUNCHER" />
+42-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:27:17-77
+42-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:27:27-74
+43            </intent-filter>
+44        </activity>
+45
+46        <service
+46-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:31:9-34:61
+47            android:name="ir.moeshakteam.moeshakmusic.player.PlaybackService"
+47-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:32:13-51
+48            android:exported="false"
+48-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:33:13-37
+49            android:foregroundServiceType="mediaPlayback" />
+49-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:34:13-58
+50        <service
+50-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:35:9-42:19
+51            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+51-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:36:13-82
+52            android:enabled="false"
+52-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:37:13-36
+53            android:exported="false" >
+53-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:38:13-37
+54            <meta-data
+54-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:39:13-41:40
+55                android:name="autoStoreLocales"
+55-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:40:17-48
+56                android:value="true" />
+56-->/home/user/MoeshakMusic/app/src/main/AndroidManifest.xml:41:17-37
+57        </service>
+58
+59        <provider
+59-->[androidx.emoji2:emoji2:1.2.0] /home/user/.gradle/caches/transforms-3/d2fcef5cf093169f65d57f8d929a5de6/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
+60            android:name="androidx.startup.InitializationProvider"
+60-->[androidx.emoji2:emoji2:1.2.0] /home/user/.gradle/caches/transforms-3/d2fcef5cf093169f65d57f8d929a5de6/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
+61            android:authorities="ir.moeshakteam.moeshakmusic.androidx-startup"
+61-->[androidx.emoji2:emoji2:1.2.0] /home/user/.gradle/caches/transforms-3/d2fcef5cf093169f65d57f8d929a5de6/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
+62            android:exported="false" >
+62-->[androidx.emoji2:emoji2:1.2.0] /home/user/.gradle/caches/transforms-3/d2fcef5cf093169f65d57f8d929a5de6/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
+63            <meta-data
+63-->[androidx.emoji2:emoji2:1.2.0] /home/user/.gradle/caches/transforms-3/d2fcef5cf093169f65d57f8d929a5de6/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
+64                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+64-->[androidx.emoji2:emoji2:1.2.0] /home/user/.gradle/caches/transforms-3/d2fcef5cf093169f65d57f8d929a5de6/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
+65                android:value="androidx.startup" />
+65-->[androidx.emoji2:emoji2:1.2.0] /home/user/.gradle/caches/transforms-3/d2fcef5cf093169f65d57f8d929a5de6/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
+66            <meta-data
+66-->[androidx.lifecycle:lifecycle-process:2.4.1] /home/user/.gradle/caches/transforms-3/daff78cd48ac7699a7791529a52f69a2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:31:13-33:52
+67                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+67-->[androidx.lifecycle:lifecycle-process:2.4.1] /home/user/.gradle/caches/transforms-3/daff78cd48ac7699a7791529a52f69a2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:32:17-78
+68                android:value="androidx.startup" />
+68-->[androidx.lifecycle:lifecycle-process:2.4.1] /home/user/.gradle/caches/transforms-3/daff78cd48ac7699a7791529a52f69a2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:33:17-49
+69        </provider>
+70    </application>
+71
+72</manifest>

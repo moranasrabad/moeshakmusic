@@ -71,14 +71,15 @@ public class SettingsFragment extends Fragment {
             App.applyTheme(requireContext());
         });
 
-        // 🎨 انتخاب رنگ اکسنت
+        // 🎨 انتخاب رنگ اکسنت — اعمال فوری با تم کامل (بدون نیاز به ری‌استارت)
         LinearLayout accentRow = v.findViewById(R.id.accentRow);
         int[] colors = {0, 0xFF22D3EE, 0xFF8B5CF6, 0xFF34D399, 0xFFF59E0B, 0xFFF43F5E, 0xFF3B82F6};
-        String[] names = {"پیش‌فرض", "یخی", "بنفش", "سبز", "کهربایی", "سرخ", "آبی"};
+        int[] nameRes = {R.string.accent_default, R.string.accent_icy, R.string.accent_purple,
+                R.string.accent_green, R.string.accent_amber, R.string.accent_rose, R.string.accent_blue};
         for (int i = 0; i < colors.length; i++) {
             final int idx = i;
             TextView dot = new TextView(requireContext());
-            dot.setText(names[i]);
+            dot.setText(nameRes[i]);
             dot.setTextSize(12);
             int pad = (int) (10 * getResources().getDisplayMetrics().density);
             dot.setPadding(pad, pad / 2, pad, pad / 2);
@@ -94,7 +95,7 @@ public class SettingsFragment extends Fragment {
             dot.setOnClickListener(x -> {
                 Prefs.get(requireContext()).setAccentColor(colors[idx]);
                 ir.moeshakteam.moeshakmusic.App.ACCENT = colors[idx];
-                Ui.toast(requireContext(), "رنگ اکسنت: " + names[idx] + " — اپ را ببند و باز کن");
+                Ui.toast(requireContext(), R.string.accent_applied);
                 requireActivity().recreate();
             });
             accentRow.addView(dot);
@@ -111,10 +112,86 @@ public class SettingsFragment extends Fragment {
         });
         ((LinearLayout) v.findViewById(R.id.accentRow).getParent()).addView(btnLang, 1);
 
+        // 🔑 کلید API شخصی — وقتی با کلید پیش‌فرض کد ورود نمی‌آید
+        try {
+            com.google.android.material.textfield.TextInputEditText etId = v.findViewById(R.id.etApiId);
+            com.google.android.material.textfield.TextInputEditText etHash = v.findViewById(R.id.etApiHash);
+            if (etId != null && etHash != null) {
+                Prefs p = Prefs.get(requireContext());
+                if (p.apiId() != 0) etId.setText(String.valueOf(p.apiId()));
+                if (p.apiHash().length() > 10) etHash.setText(p.apiHash());
+                v.findViewById(R.id.btnSaveKeys).setOnClickListener(x -> {
+                    try {
+                        int id = Integer.parseInt(etId.getText() == null ? "" : etId.getText().toString().trim());
+                        String hash = (etHash.getText() == null ? "" : etHash.getText().toString().trim());
+                        if (id <= 0 || hash.length() < 32) {
+                            Ui.toast(requireContext(), R.string.api_keys_invalid);
+                            return;
+                        }
+                        p.saveKeys(id, hash);
+                        Ui.toast(requireContext(), R.string.api_keys_saved);
+                        v.postDelayed(this::restartApp, 900);
+                    } catch (Throwable t) {
+                        Ui.toast(requireContext(), R.string.api_keys_invalid);
+                    }
+                });
+                v.findViewById(R.id.btnResetKeys).setOnClickListener(x -> {
+                    p.clearKeys();
+                    Ui.toast(requireContext(), R.string.api_keys_reset_done);
+                    v.postDelayed(this::restartApp, 900);
+                });
+            }
+        } catch (Throwable t) {
+            Tg.log("⚠️ apiKeys UI: " + t);
+        }
+
+        // 🗑 پاک کردن کتابخانه — اسکن از اول
+        try {
+            View clearLib = v.findViewById(R.id.btnClearLibrary);
+            if (clearLib != null) {
+                clearLib.setOnClickListener(x -> new AlertDialog.Builder(requireContext())
+                        .setTitle(R.string.clear_library_title)
+                        .setMessage(R.string.clear_library_confirm)
+                        .setPositiveButton(R.string.yes, (d, w) -> {
+                            Tg.get(requireContext()).clearLibrary();
+                            Ui.toast(requireContext(), R.string.clear_library_done);
+                        })
+                        .setNegativeButton(R.string.no, null)
+                        .show());
+            }
+        } catch (Throwable t) {
+            Tg.log("⚠️ clearLib UI: " + t);
+        }
+
+        // 📌 نسخهٔ اپ — مستقیم از BuildConfig (همیشه به‌روز)
+        try {
+            android.widget.TextView tvVer = v.findViewById(R.id.tvVersion);
+            if (tvVer != null) {
+                tvVer.setText("نسخه " + ir.moeshakteam.moeshakmusic.BuildConfig.VERSION_NAME
+                        + " (build " + ir.moeshakteam.moeshakmusic.BuildConfig.VERSION_CODE + ")");
+            }
+        } catch (Throwable ignored) {
+        }
+
         btnLogout.setOnClickListener(x -> new AlertDialog.Builder(requireContext())
                 .setMessage(R.string.logout_confirm)
                 .setPositiveButton(R.string.yes, (d, w) -> Tg.get(requireContext()).logout())
                 .setNegativeButton(R.string.no, null)
                 .show());
+    }
+
+    /** ری‌استارت کامل اپ — برای اعمال کلید API جدید */
+    private void restartApp() {
+        try {
+            android.content.Intent i = requireActivity().getPackageManager()
+                    .getLaunchIntentForPackage(requireContext().getPackageName());
+            if (i != null) {
+                i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                requireContext().startActivity(i);
+            }
+        } catch (Throwable ignored) {
+        }
+        android.os.Process.killProcess(android.os.Process.myPid());
     }
 }

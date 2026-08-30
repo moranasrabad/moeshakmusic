@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import ir.moeshakteam.moeshakmusic.R;
+import ir.moeshakteam.moeshakmusic.player.PlayerManager;
 import ir.moeshakteam.moeshakmusic.td.TdClient;
 import ir.moeshakteam.moeshakmusic.util.Ui;
 
@@ -113,7 +114,36 @@ public final class Tg implements TdClient.UpdateHandler {
     private Tg(Context c) {
         ctx = c.getApplicationContext();
         prefs = Prefs.get(ctx);
+        // فیوریت‌ها + کتابخانهٔ ذخیره‌شده (آهنگ‌هایی که صریحاً «افزودن به کتابخانه» شده‌اند)
+        favsSaved = SavedTracksStore.load(ctx);
+        for (Track t : favsSaved) PlayerManager.FAVORITES.add(PlayerManager.key(t));
+        if (!favsSaved.isEmpty())
+            log("❤️ " + favsSaved.size() + " فیوریت از دیسک بازیابی شد (پس از ورود، fileId تازه گرفته می‌شود)");
+        // 📚 کتابخانهٔ ذخیره‌شده — دیگر بعد از ری‌استارت خالی نیست
+        List<Track> lib = LibraryPersistence.load(ctx);
+        if (!lib.isEmpty()) {
+            library.addAll(lib);
+            log("📚 " + lib.size() + " تراک کتابخانه از دیسک لود شد");
+        }
     }
+
+    /** ذخیرهٔ کتابخانه روی دیسک — بعد از هر تغییر مهم */
+    public void persistLibraryNow() {
+        LibraryPersistence.save(ctx, new ArrayList<>(library));
+    }
+
+    /** نتایج اسکن — جدا از کتابخانه تا قاطی نشوند */
+    public final List<Track> scanResults = new CopyOnWriteArrayList<>();
+    /** فایل عکس کوچک هر چت (برای تامبنیل) — chatId → fileId */
+    public final Map<Long, Integer> chatPhotoFileIds = new ConcurrentHashMap<>();
+    /** فیوریت‌های لودشده از دیسک (برای بازیابی بعد از ورود) */
+    private final List<Track> favsSaved;
+    /** آیا بازیابی بعد از ورود انجام شده؟ */
+    private volatile boolean restored;
+    /** هوک UI — بعد از تغییر کتابخانه صدا زده می‌شود */
+    public volatile Runnable onLibraryChanged;
+    /** شنونده‌های پیشرفت اسکن عمیق (UI) */
+    public final List<ScanListener> deepListeners = new CopyOnWriteArrayList<>();
 
     // ---------- چرخهٔ حیات ----------
 
@@ -318,7 +348,24 @@ public final class Tg implements TdClient.UpdateHandler {
             pendingQr = false;
             log("✅ ورود انجام شد — READY");
             setAuth(Auth.READY, null);
+            // بازیابی فیوریت‌ها و پلی‌لیست‌ها با fileId تازه
+            restoreSaved();
         } else if (s instanceof TdApi.AuthorizationStateLoggingOut) {
+            // خروج — یا دستی (از تنظیمات) یا خاتمهٔ از راه دور (Devices ← Terminate)
+            if (!logoutRequested) {
+                log("🚪 نشست از راه دور خاتمه یافت (از دستگاه دیگری) — ورود مجدد با QR آماده می‌شود…");
+                Ui.toast(ctx, R.string.session_terminated);
+                pendingQr = true; // بعد از ساخت کلاینت تازه، خودکار صفحهٔ QR باز شود
+            } else {
+                log("🚪 خروج دستی…");
+            }
+            // بستن درگاه — هیچ درخواستی به کلاینتِ در حال مرگ نرود (ضدکرش)
+            TdClient.gate(true);
+            // توقف پخش/دانلود — استریم روی نشستِ مرده کرش می‌دهد
+            try {
+                PlayerManager.get(ctx).stopAll();
+            } catch (Throwable ignored) {
+            }
             setAuth(Auth.LOGGING_OUT, null);
         } else if (s instanceof TdApi.AuthorizationStateClosed) {
             // کلاینت کاملاً بسته شد — حالا امنه کلاینت تازه بسازیم
@@ -326,6 +373,7 @@ public final class Tg implements TdClient.UpdateHandler {
             chatTitles.clear();
             downloads.clear();
             TdClient.recreate();
+            TdClient.gate(false); // کلاینت تازه آماده است — درگاه باز شود
             if (prefs.proxyEnabled()) applyProxy();
             logoutRequested = false;
             log("🔄 کلاینت تازه ساخته شد — منتظر وضعیت جدید…");
@@ -587,24 +635,35 @@ public final class Tg implements TdClient.UpdateHandler {
 
     /** اسکن کامل: همهٔ چت‌ها با تاریخچهٔ مستقیم */
     public void scanLibrary(ScanListener cb) {
-        scanRange(0, Integer.MAX_VALUE, cb);
+        scanRange(0, Integer.MAX_VALUE, cb, false);
     }
 
-    /** اسکن دستی: از چت from به بعد، count تا چت */
+    /** اسکن دستی: از چت from به بعد، count تا چت — نتایج به scanResults می‌روند (جدا از کتابخانه) */
     public void scanRange(int from, int count, ScanListener cb) {
+        scanRange(from, count, cb, true); // ✅ اسکن دستی مستقیم به کتابخانه (TRACKS)
+    }
+
+    /**
+     * اسکن با مقصد قابل انتخاب:
+     * toLibrary=true → کتابخانهٔ دائمی (فقط از «افزودن به کتابخانه» استفاده می‌شود)
+     * toLibrary=false → نتایج اسکن (بخش SCAN)
+     */
+    public void scanRange(int from, int count, ScanListener cb, boolean toLibrary) {
         if (scanning) {
             Ui.toast(ctx, ctx.getString(R.string.scan_already));
-            cb.onDone(library.size());
+            cb.onDone(toLibrary ? library.size() : scanResults.size());
             return;
         }
         scanning = true;
         scanCancel = false;
+        final List<Track> target = toLibrary ? library : scanResults;
+        final long tStart = System.currentTimeMillis();
         EXEC.execute(() -> {
             int chats = 0;
             int files = 0;
             List<Track> buffer = new ArrayList<>();
             try {
-                log("🚀 اسکن v2 شروع شد (موتور تاریخچهٔ مستقیم)");
+                log("🚀 اسکن v2 شروع شد (موتور تاریخچهٔ مستقیم) → " + (toLibrary ? "کتابخانه" : "بخش اسکن"));
                 List<TdApi.Chat> all = loadAllChats();
                 log("📋 " + all.size() + " چت لود شد");
                 // Saved Messages همیشه اول
@@ -621,7 +680,7 @@ public final class Tg implements TdClient.UpdateHandler {
                 } catch (Exception ignored) {
                 }
                 int end = (int) Math.min(all.size(), (long) from + count);
-                cb.onProgress(library.size(), 0);
+                cb.onProgress(target.size(), 0);
                 int[] msgs = new int[1];
                 for (int i = from; i < end; i++) {
                     if (scanCancel) {
@@ -645,41 +704,350 @@ public final class Tg implements TdClient.UpdateHandler {
                     }
                     chats++;
                     scannedChats = chats;
+                    if (chats == 1) ir.moeshakteam.moeshakmusic.util.NotifHelper.scanProgress(ctx, 0, target.size());
+                    else if (chats % 10 == 0) ir.moeshakteam.moeshakmusic.util.NotifHelper.scanProgress(ctx, chats, target.size());
                     if (found.size() > 0) {
-                        log("🎵 «" + title + "»: " + found.size() + " موزیک اضافه شد (مجموع: " + (library.size() + buffer.size()) + ")");
+                        log("🎵 «" + title + "»: " + found.size() + " موزیک (مجموع: " + (target.size() + buffer.size()) + ")");
                     }
-                    cb.onProgress(library.size() + buffer.size(), chats);
+                    // ادغام تدریجی — نتایج زنده در UI دیده شوند
+                    if (!buffer.isEmpty()) {
+                        mergeNew(buffer, target);
+                        buffer.clear();
+                    }
+                    cb.onProgress(target.size(), chats);
                     if (chats % 8 == 0) Thread.sleep(800);
                 }
-                // ادغام یک‌جای بافر با کتابخانه (بدون هزاران کپی COW)
-                for (Track t : buffer) {
-                    boolean isNew = true;
-                    for (Track ex : library) {
-                        if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
-                            isNew = false;
-                            break;
-                        }
-                    }
-                    if (isNew) library.add(t);
-                }
-                // مرتب‌سازی: جدیدترین اول
-                List<Track> sorted = new ArrayList<>(library);
-                sorted.sort((a, b) -> Integer.compare(b.date, a.date));
-                library.clear();
-                library.addAll(sorted);
-                log("🏁 اسکن تمام شد: " + chats + " چت، " + files + " فایل صوتی، مجموع " + library.size());
-                cb.onDone(library.size());
+                // ادغام یک‌جای بافر (بدون هزاران کپی COW) — بدون تکرار
+                int added = mergeNew(buffer, target);
+                sortNewestFirst(target);
+                log("🏁 اسکن تمام شد: " + chats + " چت، " + files + " فایل صوتی، " + added + " تراک جدید");
+                long dsec = (System.currentTimeMillis() - tStart) / 1000;
+                ir.moeshakteam.moeshakmusic.util.NotifHelper.scanDone(ctx, chats, target.size(), (int) dsec);
+                cb.onDone(target.size());
             } catch (Exception e) {
                 log("⚠️ خطای اسکن: " + e.getMessage());
-                cb.onDone(library.size());
+                cb.onDone(target.size());
             } finally {
                 scanning = false;
             }
         });
     }
 
+    /** افزودن تراک‌های بدون تکرار به مقصد — تعداد اضافه‌شده */
+    private int mergeNew(List<Track> buffer, List<Track> target) {
+        int added = 0;
+        for (Track t : buffer) {
+            boolean isNew = true;
+            for (Track ex : library) {
+                if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
+                    isNew = false;
+                    break;
+                }
+            }
+            if (isNew && target != library) {
+                for (Track ex : scanResults) {
+                    if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
+                        isNew = false;
+                        break;
+                    }
+                }
+            }
+            if (isNew) {
+                target.add(t);
+                added++;
+            }
+        }
+        return added;
+    }
+
+    private void sortNewestFirst(List<Track> list) {
+        List<Track> sorted = new ArrayList<>(list);
+        sorted.sort((a, b) -> Integer.compare(b.date, a.date));
+        list.clear();
+        list.addAll(sorted);
+    }
+
+    /** انتقال همهٔ نتایج اسکن به کتابخانهٔ دائمی — تعداد اضافه‌شده */
+    public int addScanResultsToLibrary() {
+        int added = mergeNew(new ArrayList<>(scanResults), library);
+        scanResults.clear();
+        if (added > 0) {
+            sortNewestFirst(library);
+        }
+        log("📚 " + added + " تراک از اسکن به کتابخانه اضافه شد (مجموع " + library.size() + ")");
+        if (added > 0) persistLibraryNow();
+        notifyLibraryChanged();
+        return added;
+    }
+
+    /** پاک کردن نتایج اسکن (بدون افزودن به کتابخانه) */
+    public void clearScanResults() {
+        scanResults.clear();
+    }
+
+    /** 🗑 پاک کردن کل کتابخانه + نتایج — برای شروع اسکن از اول — تیم موشک */
+    public void clearLibrary() {
+        library.clear();
+        scanResults.clear();
+        persistLibraryNow();
+        log("🗑 کتابخانه پاک شد — با اسکن از اول ساخته می‌شود");
+        notifyLibraryChanged();
+    }
+
+    /** هوک UI بعد از تغییر کتابخانه */
+    private void notifyLibraryChanged() {
+        Runnable r = onLibraryChanged;
+        if (r != null) {
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(r);
+        }
+    }
+
+    // ---------- ذخیرهٔ دائمی: فقط فیوریت‌ها (+ پلی‌لیست‌ها در PlaylistStore) ----------
+
+    /** ذخیرهٔ فیوریت‌ها از همهٔ منابع (کتابخانه + صف پخش + پلی‌لیست‌ها) */
+    public void saveFavorites() {
+        EXEC.execute(() -> {
+            try {
+                List<Track> out = new ArrayList<>();
+                java.util.Set<String> keys = PlayerManager.FAVORITES;
+                java.util.Set<String> seen = new HashSet<>();
+                for (Track t : library) {
+                    String k = PlayerManager.key(t);
+                    if (keys.contains(k) && seen.add(k)) out.add(t);
+                }
+                for (Track t : PlayerManager.get(ctx).queue) {
+                    String k = PlayerManager.key(t);
+                    if (keys.contains(k) && seen.add(k)) out.add(t);
+                }
+                for (PlaylistStore.Playlist p : PlaylistStore.get(ctx).all()) {
+                    for (Track t : p.tracks) {
+                        String k = PlayerManager.key(t);
+                        if (keys.contains(k) && seen.add(k)) out.add(t);
+                    }
+                }
+                SavedTracksStore.save(ctx, out);
+                log("❤️ فیوریت‌ها ذخیره شد (" + out.size() + ")");
+            } catch (Exception e) {
+                log("⚠️ ذخیرهٔ فیوریت: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * بازیابی بعد از ورود (بعد از READY): fileId تلگرام بین ری‌استارت‌ها عوض می‌شود،
+     * پس برای هر تراکِ ذخیره‌شده (فیوریت/پلی‌لیست) پیام اصلی دوباره گرفته می‌شود تا fileId تازه باشد.
+     * تراک‌های بازیابی‌شده در کتابخانه قرار می‌گیرند — بقیهٔ کتابخانه با اسکن ساخته می‌شود.
+     */
+    public void restoreSaved() {
+        if (restored) return;
+        restored = true;
+        EXEC.execute(() -> {
+            try {
+                int favCount = favsSaved.size();
+                log("♻️ بازیابی فیوریت‌ها و پلی‌لیست‌ها (fileId تازه)…");
+                Set<String> keys = new java.util.LinkedHashSet<>();
+                List<Track> resolved = new ArrayList<>();
+                // فیوریت‌ها
+                for (Track old : favsSaved) {
+                    keys.add(PlayerManager.key(old));
+                    Track nt = refreshTrackFile(old);
+                    if (nt != null) resolved.add(nt);
+                    else resolved.add(old); // اگر پیام پاک شده باشد همان نسخهٔ قدیمی می‌ماند
+                }
+                PlayerManager.FAVORITES.clear();
+                PlayerManager.FAVORITES.addAll(keys);
+                // پلی‌لیست‌ها
+                PlaylistStore ps = PlaylistStore.get(ctx);
+                for (PlaylistStore.Playlist p : ps.all()) {
+                    boolean changed = false;
+                    for (int i = 0; i < p.tracks.size(); i++) {
+                        Track nt = refreshTrackFile(p.tracks.get(i));
+                        if (nt != null) {
+                            p.tracks.set(i, nt);
+                            changed = true;
+                            resolved.add(nt);
+                        }
+                    }
+                    if (changed) ps.save(p);
+                }
+                int added = mergeNew(resolved, library);
+                sortNewestFirst(library);
+                log("♻️ " + favCount + " فیوریت + پلی‌لیست‌ها بازیابی شد (" + added + " تراک در کتابخانه) — بقیه با اسکن 🔍");
+                notifyLibraryChanged();
+            } catch (Exception e) {
+                log("⚠️ خطای بازیابی: " + e.getMessage());
+            }
+        });
+    }
+
+    /** گرفتن fileId تازهٔ یک تراک از پیام اصلی‌اش — null اگر پیام دیگر نباشد */
+    private Track refreshTrackFile(Track old) {
+        try {
+            org.json.JSONObject msg = TdClient.syncRaw(new TdApi.GetMessage(old.chatId, old.messageId));
+            if (msg == null || msg.optLong("id") == 0) return null;
+            org.json.JSONObject content = msg.optJSONObject("content");
+            if (content == null) return null;
+            String type = content.optString("@type");
+            // ویس — جدا ساخته می‌شود (اسکن عادی ویس نمی‌گیرد ولی فیوریت/پلی‌لیست ممکن است ویس باشد)
+            if ("messageVoiceNote".equals(type)) {
+                org.json.JSONObject vn = content.optJSONObject("voice_note");
+                org.json.JSONObject vf = vn == null ? null : vn.optJSONObject("voice");
+                if (vf == null) return null;
+                Track t = new Track();
+                t.chatId = old.chatId;
+                t.messageId = old.messageId;
+                t.date = msg.optInt("date");
+                t.duration = vn.optInt("duration");
+                t.title = old.title == null || old.title.isEmpty() ? "ویس — " + ir.moeshakteam.moeshakmusic.util.Ui.fmtDuration(t.duration) : old.title;
+                t.performer = "پیام صوتی";
+                t.fileId = vf.optInt("id");
+                t.expectedSize = vf.optLong("expected_size", vf.optLong("size"));
+                t.chatTitle = old.chatTitle == null || old.chatTitle.isEmpty() ? "ویس" : old.chatTitle;
+                t.isVoice = true;
+                t.thumbFileId = old.thumbFileId;
+                t.chatPhotoFileId = old.chatPhotoFileId;
+                return t;
+            }
+            org.json.JSONObject wrap = new org.json.JSONObject();
+            org.json.JSONArray arr = new org.json.JSONArray();
+            arr.put(msg);
+            wrap.put("messages", arr);
+            List<RawTrack> rs = extractAudioRaw(old.chatId, wrap);
+            if (rs.isEmpty()) return null;
+            RawTrack r = rs.get(0);
+            String ct = old.chatTitle == null || old.chatTitle.isEmpty() ? "" : old.chatTitle;
+            if (old.chatId == myUserId) ct = "Saved ⭐";
+            Track nt = toTrack(r, ct);
+            nt.thumbFileId = old.thumbFileId != 0 ? old.thumbFileId : nt.thumbFileId;
+            Integer pf = chatPhotoFileIds.get(old.chatId);
+            nt.chatPhotoFileId = pf != null ? pf : old.chatPhotoFileId;
+            return nt;
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
     /** لغو اسکن جاری */
     public volatile boolean scanCancel = false;
+
+    // ---------- دنبال‌شده‌ها: چک آهنگ جدید ----------
+
+    /** آهنگ‌های جدید چت‌های دنبال‌شده — در صفحهٔ دنبال‌شده‌ها */
+    public final List<Track> followedResults = new CopyOnWriteArrayList<>();
+    /** هوک UI بعد از هر چک */
+    public volatile Runnable onFollowedUpdate;
+
+    public interface FollowDone { void onDone(boolean foundNew); }
+
+    /**
+     * فالو + دیپ‌اسکن کامل خودکار — چت فالو‌شده بلافاصله کامل خوانده می‌شود؛
+     * آهنگ‌های جدید به scanResults می‌روند و knownIds بروز می‌شود (فقط آینده نوتیف بخورد).
+     */
+    public void followAndDeepScan(long chatId, String title) {
+        FollowStore fs = FollowStore.get(ctx);
+        if (fs.isFollowed(chatId)) return;
+        // baseline = آهنگ‌های فعلی کتابخانه از این چت
+        List<String> base = new ArrayList<>();
+        for (Track t : library) if (t.chatId == chatId) base.add(t.chatId + ":" + t.messageId);
+        fs.follow(chatId, title, base);
+        log("🔔 فالو شد: " + title + " — دیپ‌اسکن کامل شروع می‌شود…");
+        deepScanChat(chatId, new ScanListener() {
+            @Override
+            public void onProgress(int found, int chats) {
+                for (ScanListener x : deepListeners) x.onProgress(found, chats);
+            }
+
+            @Override
+            public void onDone(int added) {
+                // ✅ نتایج این چت از «اسکن» به «کتابخانه» منتقل شوند — فالو کرده‌ای، باید در TRACKS باشد
+                List<Track> mine = new ArrayList<>();
+                for (Track t : scanResults) {
+                    if (t.chatId == chatId) mine.add(t);
+                }
+                scanResults.removeAll(mine);
+                mergeNew(mine, library);
+                sortNewestFirst(library);
+                notifyLibraryChanged();
+                // knownIds = همهٔ آهنگ‌های دیده‌شده این چت — از این به بعد فقط جدید نوتیف می‌خورد
+                Set<String> known = new HashSet<>(base);
+                for (Track t : library) {
+                    if (t.chatId == chatId) known.add(t.chatId + ":" + t.messageId);
+                }
+                fs.updateKnown(chatId, new ArrayList<>(known));
+                persistLibraryNow();
+                log("🔔 دیپ‌اسکن «" + title + "» تمام شد — " + added + " آهنگ به کتابخانه اضافه شد");
+            }
+
+            @Override
+            public void onError(String msg) {
+                log("⚠️ دیپ‌اسکن فالو: " + msg);
+            }
+        });
+    }
+
+    /** 🔧 فلاگ جدا — چک فالو نباید اسکن دستی را قفل کند */
+    private volatile boolean followChecking = false;
+
+    /** چک همهٔ چت‌های دنبال‌شده — نوتیف + followedResults */
+    public void checkFollowed(FollowDone cb) {
+        if (followChecking || scanning) {
+            log("⏳ چک فالو عقب افتاد — اسکن/چک دیگری در جریان است");
+            if (cb != null) cb.onDone(false);
+            return;
+        }
+        List<FollowStore.Followed> fs = FollowStore.get(ctx).all();
+        if (fs.isEmpty()) { if (cb != null) cb.onDone(false); return; }
+        followChecking = true;
+        EXEC.execute(() -> {
+            boolean foundNew = false;
+            try {
+                log("🔔 چک دنبال‌شده‌ها (" + fs.size() + " چت)…");
+                for (FollowStore.Followed f : fs) {
+                    if (scanCancel) break;
+                    TdApi.Chat chat = chatFromRaw(f.chatId);
+                    if (chat.title != null && !chat.title.isEmpty() && !chat.title.equals(f.title)) {
+                        FollowStore.get(ctx).updateTitle(f.chatId, chat.title);
+                        f.title = chat.title;
+                    }
+                    int[] msgs = new int[1];
+                    // کل چت — دیپ اسکن کامل (هرچقدر دارد)
+                    List<Track> found = deepHistory(chat, msgs, (fnd, m) -> {
+                        for (ScanListener x : deepListeners) x.onProgress(fnd, m);
+                    });
+                    List<Track> newOnes = new ArrayList<>();
+                    for (Track t : found) {
+                        if (!f.knownIds.contains(t.chatId + ":" + t.messageId)) newOnes.add(t);
+                    }
+                    if (!newOnes.isEmpty()) {
+                        foundNew = true;
+                        for (Track t : newOnes) {
+                            boolean ex = false;
+                            for (Track x : followedResults) if (x.sameAs(t)) { ex = true; break; }
+                            if (!ex) followedResults.add(t);
+                        }
+                        // ✅ آهنگ‌های جدید به کتابخانه هم بیایند (TRACKS)
+                        mergeNew(newOnes, library);
+                        persistLibraryNow();
+                        Set<String> all = new HashSet<>(f.knownIds);
+                        for (Track t : found) all.add(t.chatId + ":" + t.messageId);
+                        FollowStore.get(ctx).updateKnown(f.chatId, new ArrayList<>(all));
+                        List<String> titles = new ArrayList<>();
+                        for (int i = 0; i < Math.min(3, newOnes.size()); i++) titles.add(newOnes.get(i).title);
+                        String chTitle = chat.title == null || chat.title.isEmpty() ? f.title : chat.title;
+                        ir.moeshakteam.moeshakmusic.util.NotifHelper.newTracks(ctx, chTitle, titles);
+                        log("🎵 جدید از «" + chTitle + "»: " + newOnes.size());
+                    }
+                }
+                Runnable r = onFollowedUpdate;
+                if (r != null) new android.os.Handler(android.os.Looper.getMainLooper()).post(r);
+            } catch (Exception e) {
+                log("⚠️ چک دنبال‌شده: " + e.getMessage());
+            } finally {
+                followChecking = false;
+            }
+            if (cb != null) cb.onDone(foundNew);
+        });
+    }
 
     public void cancelScan() {
         scanCancel = true;
@@ -729,6 +1097,15 @@ public final class Tg implements TdClient.UpdateHandler {
                 else if ("chatTypeSupergroup".equals(tt)) type = new TdApi.ChatTypeSupergroup(tj.optLong("supergroup_id"), tj.optBoolean("is_channel", false));
                 else if ("chatTypeSecret".equals(tt)) type = new TdApi.ChatTypeSecret(tj.optInt("secret_chat_id"), tj.optLong("user_id"));
             }
+            // عکس کوچک چت — برای تامبنیل تراک‌های این چت
+            org.json.JSONObject ph = cj.optJSONObject("photo");
+            if (ph != null) {
+                org.json.JSONObject sm = ph.optJSONObject("small");
+                if (sm != null) {
+                    int pf = sm.optInt("id");
+                    if (pf > 0) chatPhotoFileIds.put(id, pf);
+                }
+            }
         } catch (Exception ignored) {
         }
         TdApi.Chat c = new TdApi.Chat();
@@ -769,8 +1146,13 @@ public final class Tg implements TdClient.UpdateHandler {
             org.json.JSONArray arr = h.optJSONArray("messages");
             int n = arr == null ? 0 : arr.length();
             msgsOut[0] += n;
+            Integer photoFileId = chatPhotoFileIds.get(chatId);
             for (RawTrack r : extractAudioRaw(chatId, h)) {
-                if (seen.add(chatId + ":" + r.msgId)) out.add(toTrack(r, chatTitle));
+                if (seen.add(chatId + ":" + r.msgId)) {
+                    Track tt = toTrack(r, chatTitle);
+                    if (photoFileId != null) tt.chatPhotoFileId = photoFileId;
+                    out.add(tt);
+                }
             }
             if (n < 50 || arr == null) break;
             from = arr.optJSONObject(n - 1).optLong("id");
@@ -786,7 +1168,12 @@ public final class Tg implements TdClient.UpdateHandler {
                     break;
                 }
                 for (RawTrack r : extractAudioRaw(chatId, f)) {
-                    if (seen.add(chatId + ":" + r.msgId)) out.add(toTrack(r, chatTitle));
+                    if (seen.add(chatId + ":" + r.msgId)) {
+                        Track tt = toTrack(r, chatTitle);
+                        Integer pf = chatPhotoFileIds.get(chatId);
+                        if (pf != null) tt.chatPhotoFileId = pf;
+                        out.add(tt);
+                    }
                 }
                 if (!out.isEmpty()) break;
             }
@@ -886,23 +1273,12 @@ public final class Tg implements TdClient.UpdateHandler {
                 }
                 log("🔎 اسکن عمیق «" + (chat.title == null ? "بدون‌نام" : chat.title) + "» (تا ۳۰۰۰ پیام)…");
                 int[] msgs = new int[1];
-                List<Track> found = deepHistory(chat, msgs);
-                // ادغام یک‌جا
-                List<Track> toAdd = new ArrayList<>();
-                for (Track t : found) {
-                    boolean isNew = true;
-                    for (Track ex : library) {
-                        if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
-                            isNew = false;
-                            break;
-                        }
-                    }
-                    if (isNew) toAdd.add(t);
-                }
-                library.addAll(toAdd);
-                for (Track t : toAdd) log("🎵 +" + t.title);
-                log("🔎 اسکن عمیق تمام شد: " + msgs[0] + " پیام → " + toAdd.size() + " موزیک جدید");
-                cb.onDone(toAdd.size());
+                List<Track> found = deepHistory(chat, msgs,
+                        (fnd, m) -> { for (Tg.ScanListener x : deepListeners) x.onProgress(fnd, m); });
+                int added = mergeNew(found, scanResults);
+                for (Track t : found.subList(Math.max(0, found.size() - added), found.size())) log("🎵 +" + t.title);
+                log("🔎 اسکن عمیق تمام شد: " + msgs[0] + " پیام → " + added + " موزیک جدید (در بخش اسکن)");
+                cb.onDone(added);
             } catch (Exception e) {
                 log("⚠️ خطای اسکن عمیق: " + e.getMessage());
                 cb.onDone(0);
@@ -913,13 +1289,17 @@ public final class Tg implements TdClient.UpdateHandler {
     }
 
     /** تاریخچهٔ عمیق با استخراج raw: تا ۳۰۰۰ پیام */
-    private List<Track> deepHistory(TdApi.Chat chat, int[] msgsOut) {
+    public interface DeepProgress { void onProgress(int found, int msgs); }
+
+    /** اسکن عمیق — کل تاریخچهٔ چت، هرچقدر که دارد (بدون سقف) — تیم موشک */
+    private List<Track> deepHistory(TdApi.Chat chat, int[] msgsOut, DeepProgress progress) {
         List<Track> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         String chatTitle = chat.title == null ? "" : chat.title;
         if (chat.id == myUserId) chatTitle = "Saved ⭐";
         long from = 0L;
-        for (int round = 0; round < 60; round++) {
+        int emptyRounds = 0;
+        while (true) {
             if (scanCancel) break;
             org.json.JSONObject h;
             try {
@@ -933,11 +1313,19 @@ public final class Tg implements TdClient.UpdateHandler {
             for (RawTrack r : extractAudioRaw(chat.id, h)) {
                 if (seen.add(chat.id + ":" + r.msgId)) out.add(toTrack(r, chatTitle));
             }
-            if (msgsOut[0] % 200 == 0) {
+            if (progress != null) progress.onProgress(out.size(), msgsOut[0]);
+            if (msgsOut[0] % 500 == 0) {
                 log("   … " + msgsOut[0] + " پیام، " + out.size() + " فایل");
             }
-            if (n < 50 || arr == null) break;
-            from = arr.optJSONObject(n - 1).optLong("id");
+            if (n < 50 || arr == null) {
+                emptyRounds++;
+                if (emptyRounds >= 2) break;
+            } else {
+                emptyRounds = 0;
+            }
+            long lastId = arr == null ? 0 : arr.optJSONObject(n - 1).optLong("id");
+            if (lastId == from || lastId == 0) break;
+            from = lastId;
         }
         return out;
     }
@@ -956,23 +1344,9 @@ public final class Tg implements TdClient.UpdateHandler {
                 scanning = true;
                 log("⭐ اسکن عمیق Saved Messages…");
                 int[] msgs = new int[1];
-                List<Track> found = deepHistory(saved, msgs);
-                int added = 0;
-                for (Track t : found) {
-                    boolean isNew = true;
-                    for (Track ex : library) {
-                        if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
-                            isNew = false;
-                            break;
-                        }
-                    }
-                    if (isNew) {
-                        library.add(t);
-                        added++;
-                        log("🎵 +" + t.title);
-                    }
-                }
-                log("⭐ اسکن سیو تمام شد: " + msgs[0] + " پیام → " + added + " موزیک جدید (مجموع " + library.size() + ")");
+                List<Track> found = deepHistory(saved, msgs, null);
+                int added = mergeNew(found, scanResults);
+                log("⭐ اسکن سیو تمام شد: " + msgs[0] + " پیام → " + added + " موزیک جدید (در بخش اسکن)");
                 cb.onDone(added);
             } catch (Exception e) {
                 log("⚠️ خطای اسکن سیو: " + e.getMessage());

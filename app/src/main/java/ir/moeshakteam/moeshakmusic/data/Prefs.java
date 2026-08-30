@@ -76,6 +76,11 @@ public final class Prefs {
         sp.edit().putInt("api_id", id).putString("api_hash", hash).apply();
     }
 
+    /** حذف کلید شخصی — برگشت به کلید بیک‌شده */
+    public void clearKeys() {
+        sp.edit().remove("api_id").remove("api_hash").apply();
+    }
+
     // ---------- پروکسی ----------
 
     public boolean proxyEnabled() {
@@ -88,7 +93,13 @@ public final class Prefs {
     }
 
     public void setActiveProxyIndex(int idx) {
+        if (idx >= 0) sp.edit().putInt("proxy_last", idx).apply();
         sp.edit().putInt("proxy_active", idx).putBoolean("proxy_on", idx >= 0).apply();
+    }
+
+    /** آخرین پروکسی انتخابی (برای روشن کردن دوباره بعد از خاموشی) */
+    public int lastProxyIndex() {
+        return sp.getInt("proxy_last", -1);
     }
 
     public List<ProxyEntry> proxies() {
