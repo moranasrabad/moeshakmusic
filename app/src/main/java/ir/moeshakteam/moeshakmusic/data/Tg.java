@@ -140,8 +140,17 @@ public final class Tg implements TdClient.UpdateHandler {
     private final List<Track> favsSaved;
     /** آیا بازیابی بعد از ورود انجام شده؟ */
     private volatile boolean restored;
-    /** هوک UI — بعد از تغییر کتابخانه صدا زده می‌شود */
+    /** هوک UI — بعد از تغییر کتابخانه صدا زده می‌شود (چند شنونده؛ رونویسی نشود) */
     public volatile Runnable onLibraryChanged;
+    private final List<Runnable> libraryListeners = new CopyOnWriteArrayList<>();
+
+    public void addLibraryListener(Runnable r) {
+        if (r != null && !libraryListeners.contains(r)) libraryListeners.add(r);
+    }
+
+    public void removeLibraryListener(Runnable r) {
+        libraryListeners.remove(r);
+    }
     /** شنونده‌های پیشرفت اسکن عمیق (UI) */
     public final List<ScanListener> deepListeners = new CopyOnWriteArrayList<>();
 
@@ -720,7 +729,10 @@ public final class Tg implements TdClient.UpdateHandler {
                 // ادغام یک‌جای بافر (بدون هزاران کپی COW) — بدون تکرار
                 int added = mergeNew(buffer, target);
                 sortNewestFirst(target);
-                log("🏁 اسکن تمام شد: " + chats + " چت، " + files + " فایل صوتی، " + added + " تراک جدید");
+                log("🏁 اسکن تمام شد: " + chats + " چت، " + files + " فایل صوتی، " + added + " تراک جدید → "
+                        + (toLibrary ? "کتابخانه " + library.size() : "نتایج اسکن " + scanResults.size()));
+                if (toLibrary) persistLibraryNow();
+                notifyLibraryChanged();
                 long dsec = (System.currentTimeMillis() - tStart) / 1000;
                 ir.moeshakteam.moeshakmusic.util.NotifHelper.scanDone(ctx, chats, target.size(), (int) dsec);
                 cb.onDone(target.size());
@@ -796,10 +808,28 @@ public final class Tg implements TdClient.UpdateHandler {
 
     /** هوک UI بعد از تغییر کتابخانه */
     private void notifyLibraryChanged() {
-        Runnable r = onLibraryChanged;
-        if (r != null) {
-            new android.os.Handler(android.os.Looper.getMainLooper()).post(r);
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            Runnable r = onLibraryChanged;
+            if (r != null) {
+                try { r.run(); } catch (Throwable ignored) {}
+            }
+            for (Runnable l : libraryListeners) {
+                try { l.run(); } catch (Throwable ignored) {}
+            }
+        });
+    }
+
+    /** رفرش کتابخانه از دیسک + لاگ وضعیت */
+    public void reloadLibraryFromDisk() {
+        log("♻️ رفرش کتابخانه از دیسک… (الان " + library.size() + " موزیک)");
+        List<Track> lib = LibraryPersistence.load(ctx);
+        if (!lib.isEmpty()) {
+            mergeNew(lib, library);
+            sortNewestFirst(library);
         }
+        log("📚 کتابخانه بعد از رفرش: " + library.size() + " موزیک"
+                + (library.isEmpty() ? " — خالی است" : ""));
+        notifyLibraryChanged();
     }
 
     // ---------- ذخیرهٔ دائمی: فقط فیوریت‌ها (+ پلی‌لیست‌ها در PlaylistStore) ----------
@@ -1118,7 +1148,7 @@ public final class Tg implements TdClient.UpdateHandler {
     /** تراک استخراج‌شده از JSON خام */
     private static class RawTrack {
         long msgId, chatId;
-        int date, duration, fileId;
+        int date, duration, fileId, thumbFileId;
         long size;
         String title = "", performer = "";
         byte[] artMini;
@@ -1249,6 +1279,7 @@ public final class Tg implements TdClient.UpdateHandler {
         t.expectedSize = r.size;
         t.chatTitle = chatTitle;
         t.artMini = r.artMini;
+        t.thumbFileId = r.thumbFileId;
         return t;
     }
 
@@ -1563,6 +1594,16 @@ public final class Tg implements TdClient.UpdateHandler {
         try {
             long len = raf.length();
             if (offset >= len) return new byte[0];
+            raf.seek(offset);
+            int n = (int) Math.min(count, len - offset);
+            byte[] out = new byte[n];
+            raf.readFully(out);
+            return out;
+        } finally {
+            raf.close();
+        }
+    }
+};
             raf.seek(offset);
             int n = (int) Math.min(count, len - offset);
             byte[] out = new byte[n];

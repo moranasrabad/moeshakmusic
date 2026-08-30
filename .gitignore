@@ -2,5 +2,9 @@ build/
 .gradle/
 local.properties
 *.apk
+*.aab
+MoeshakMusic-iOS/
+store_screens/
+icon_v2_clean.png
 # libtdjson نیتیوها — با ./setup-abis.sh دوباره ساخته می‌شوند
 app/src/main/jniLibs/

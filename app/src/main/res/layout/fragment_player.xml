@@ -40,10 +40,10 @@
         app:layout_constraintBottom_toBottomOf="@id/viz"
         app:layout_constraintDimensionRatio="1:1"
         app:layout_constraintEnd_toEndOf="@id/viz"
-        app:layout_constraintHeight_percent="0.64"
+        app:layout_constraintHeight_percent="0.28"
         app:layout_constraintStart_toStartOf="@id/viz"
         app:layout_constraintTop_toTopOf="@id/viz"
-        app:layout_constraintWidth_percent="0.64"
+        app:layout_constraintWidth_percent="0.42"
         app:shapeAppearanceOverlay="@style/CircleImg" />
 
     <LinearLayout

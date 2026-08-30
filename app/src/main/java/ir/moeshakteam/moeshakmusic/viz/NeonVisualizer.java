@@ -147,15 +147,22 @@ public class NeonVisualizer extends View {
         for (int i = 0; i < BARS; i++) avg += levels[i];
         avg /= BARS;
 
-        // ۱) هالهٔ مرکزی نئونی
+        // ۱) هالهٔ مرکزی نئونی — طول color و position باید برابر باشد (کرش RadialGradient)
         int glowA = (int) (30 + avg * 95);
-        centerPaint.setShader(new RadialGradient(cx, cy, baseR * 1.55f,
-                new int[]{0x00000000,
-                        (glowA << 24) | 0x22D3EE,
-                        ((glowA / 2) << 24) | 0x8B5CF6,
-                        0x00000000},
-                new float[]{0.42f, 0.72f, 1f}, Shader.TileMode.CLAMP));
-        canvas.drawCircle(cx, cy, baseR * 1.55f, centerPaint);
+        float radius = Math.max(1f, baseR * 1.55f);
+        try {
+            centerPaint.setShader(new RadialGradient(cx, cy, radius,
+                    new int[]{0x00000000,
+                            (glowA << 24) | 0x22D3EE,
+                            ((glowA / 2) << 24) | 0x8B5CF6,
+                            0x00000000},
+                    new float[]{0f, 0.42f, 0.72f, 1f}, Shader.TileMode.CLAMP));
+            canvas.drawCircle(cx, cy, radius, centerPaint);
+        } catch (Throwable ignored) {
+            centerPaint.setShader(null);
+            centerPaint.setColor((glowA << 24) | 0x22D3EE);
+            canvas.drawCircle(cx, cy, radius, centerPaint);
+        }
 
         // ۲) حلقهٔ ظریف پایه
         canvas.drawCircle(cx, cy, baseR - dp(4), ringPaint);

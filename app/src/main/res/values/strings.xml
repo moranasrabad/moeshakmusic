@@ -283,4 +283,11 @@
     <string name="followed_card_meta">🔔 %1$d آهنگ دیده‌شده • هر ۱۵ دقیقه چک</string>
     <string name="followed_unfollow_confirm">«%1$s» دنبال نشود؟</string>
     <string name="followed_new_tracks">🆕 آهنگ‌های جدید:</string>
+    <string name="stats_lib">🎵 %1$d موزیک • %2$d چت</string>
+    <string name="stats_lib_empty">کتابخانه خالی است — از تب اسکن شروع کن 🔍</string>
+    <string name="stats_fav">❤️ %1$d فیوریت</string>
+    <string name="stats_fav_empty">هنوز فیوریتی نداری</string>
+    <string name="stats_follow">🔔 %1$d دنبال‌شده • %2$d موزیک دیده‌شده</string>
+    <string name="stats_follow_empty">هنوز چیزی را دنبال نکرده‌ای</string>
+    <string name="scan_status_bar">اسکن: %1$d چت • %2$d موزیک</string>
 </resources>

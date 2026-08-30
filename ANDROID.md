@@ -1,25 +1,21 @@
-# 📥 دانلود آخرین نسخه اندروید
+# 📥 موشک موزیک — اندروید
 
-## MoeshakMusic v5.9.5 (نسخهٔ فعلی)
+نسخهٔ سورس فعلی: **v5.10.3** (versionCode 85)
 
-فایل APK در ریشهٔ ریپو نگهداری می‌شود (جایگزین هر بیلد):
-**`MoeshakMusic-v5.9.5.apk`** — حدود ۹۲MB — هر ۳ معماری (arm64-v8a, armeabi-v7a, x86_64)
+APK آماده در این محیط ساخته نشد؛ بیلد را روی سیستم خودت بزن.
 
-> تاریخچهٔ کامل تغییرات: [CHANGELOG.md](CHANGELOG.md)
+راهنمای کامل، کلیک‌به‌کلیک: **[BUILD-APK.md](BUILD-APK.md)**
 
-## نصب
-1. APK را دانلود کن
-2. روی گوشی بازش کن (اجازه «نصب از منابع ناشناس»)
-3. ورود: سریع‌ترین راه **QR** (تلگرام ← تنظیمات ← دستگاه‌ها ← اتصال دستگاه)
+خروجی: `app/build/outputs/apk/release/app-release.apk`
 
-## بیلد از سورس
 ```bash
 git clone https://github.com/moranasrabad/moeshakmusic
 cd moeshakmusic
-./setup-abis.sh          # دانلود TDLib jniLibs
-gradle assembleRelease   # یا -Pslim برای فقط arm64
-# خروجی: app/build/outputs/apk/release/app-release.apk
+git checkout arena/01a05311-moeshakmusic
+# اگر jniLibs نبود: ./setup-abis.sh
+gradle assembleRelease
 ```
 
-## نسخه‌های قدیمی
-در کامیت‌های گیت (هر نسخه APK خودش را در کامیت عنوان‌دار دارد — تاریخچه CHANGELOG را ببین).
+ورود روی گوشی: QR (تلگرام ← تنظیمات ← دستگاه‌ها ← اتصال دستگاه).
+
+تاریخچه: [CHANGELOG.md](CHANGELOG.md)

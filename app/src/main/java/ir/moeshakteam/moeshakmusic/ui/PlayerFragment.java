@@ -117,6 +117,10 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         });
 
         pm.attach(this);
+        Track cur = pm.current();
+        if (cur != null) bindTrack(cur);
+        if (btnPlay != null) btnPlay.setImageResource(pm.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
+        if (viz != null) viz.setPlaying(pm.isPlaying());
         updateSecondary();
 
         // ویژوالایزر همیشه وصل است: با دسترسی میکروفن موج واقعی، بدون آن انیمیشن ریتمیک
@@ -197,18 +201,22 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
     }
 
     private void updateSecondary() {
-        if (!isAdded()) return;
-        ((ImageButton) requireActivity().findViewById(R.id.btnShuffle)).setImageResource(R.drawable.ic_shuffle);
-        ImageButton sh = requireActivity().findViewById(R.id.btnShuffle);
-        sh.setAlpha(pm.shuffle ? 1f : 0.45f);
-        ImageButton rp = requireActivity().findViewById(R.id.btnRepeat);
-        rp.setImageResource(pm.repeatMode == 2 ? R.drawable.ic_repeat_one : R.drawable.ic_repeat);
-        rp.setAlpha(pm.repeatMode == 0 ? 0.45f : 1f);
-        ImageButton fv = requireActivity().findViewById(R.id.btnFav);
-        Track cur = pm.current();
-        boolean fav = cur != null && pm.isFavorite(cur);
-        fv.setImageResource(fav ? R.drawable.ic_heart_filled : R.drawable.ic_heart);
-        fv.setColorFilter(fav ? 0xFFE11D48 : getResources().getColor(R.color.moeshak_muted, requireActivity().getTheme()));
+        if (!isAdded() || getView() == null) return;
+        View root = getView();
+        ImageButton sh = root.findViewById(R.id.btnShuffle);
+        if (sh != null) sh.setAlpha(pm.shuffle ? 1f : 0.45f);
+        ImageButton rp = root.findViewById(R.id.btnRepeat);
+        if (rp != null) {
+            rp.setImageResource(pm.repeatMode == 2 ? R.drawable.ic_repeat_one : R.drawable.ic_repeat);
+            rp.setAlpha(pm.repeatMode == 0 ? 0.45f : 1f);
+        }
+        ImageButton fv = root.findViewById(R.id.btnFav);
+        if (fv != null) {
+            Track cur = pm.current();
+            boolean fav = cur != null && pm.isFavorite(cur);
+            fv.setImageResource(fav ? R.drawable.ic_heart_filled : R.drawable.ic_heart);
+            fv.setColorFilter(fav ? 0xFFE11D48 : getResources().getColor(R.color.moeshak_muted, requireActivity().getTheme()));
+        }
     }
 
     private void bindTrack(Track t) {

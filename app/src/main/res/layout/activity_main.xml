@@ -112,17 +112,6 @@
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
-                android:id="@+id/sideProxy"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="20dp"
-                android:paddingVertical="14dp"
-                android:text="@string/proxy_screen_title"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="15sp"
-                android:background="?attr/selectableItemBackground" />
-                android:textStyle="bold" />
-
             <TextView
                 android:id="@+id/sideProxy"
                 android:layout_width="match_parent"

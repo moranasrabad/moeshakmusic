@@ -31,8 +31,10 @@ public class TracksFragment extends Fragment {
     private SwipeRefreshLayout swipe;
     private ProgressBar progress;
     private TextView empty;
+    private TextView tvStats;
     private boolean favOnly;
     private final Handler main = new Handler(Looper.getMainLooper());
+    private final Runnable libHook = () -> main.post(this::refresh);
 
     // ---------- انتخاب گروهی ----------
     private View selectionBar;
@@ -53,6 +55,7 @@ public class TracksFragment extends Fragment {
         swipe = v.findViewById(R.id.swipe);
         progress = v.findViewById(R.id.progress);
         empty = v.findViewById(R.id.empty);
+        tvStats = v.findViewById(R.id.tvLibStats);
         RecyclerView recycler = v.findViewById(R.id.recycler);
 
         adapter = new TrackAdapter((t, pos) -> {
@@ -99,15 +102,16 @@ public class TracksFragment extends Fragment {
         }
 
         swipe.setOnRefreshListener(() -> {
+            Tg tg = Tg.get(requireContext());
+            Tg.log("♻️ رفرش دستی " + (favOnly ? "فیوریت‌ها" : "کتابخانه")
+                    + " — وضعیت: " + tg.library.size() + " موزیک در کتابخانه، "
+                    + ir.moeshakteam.moeshakmusic.player.PlayerManager.favoriteTracks().size() + " فیوریت");
+            if (!favOnly) tg.reloadLibraryFromDisk();
             refresh();
             swipe.setRefreshing(false);
         });
 
-        // هوک رفرش زنده — بعد از اسکن/بازیابی
-        Tg.get(requireContext()).onLibraryChanged = () -> {
-            if (TracksFragment.liveTracks != null) TracksFragment.liveTracks.refresh();
-            if (TracksFragment.liveFavs != null) TracksFragment.liveFavs.refresh();
-        };
+        Tg.get(requireContext()).addLibraryListener(libHook);
 
         refresh();
         if (favOnly) liveFavs = this;
@@ -139,13 +143,27 @@ public class TracksFragment extends Fragment {
             if (selectionBar != null) selectionBar.setVisibility(View.GONE);
         }
         if (favOnly) {
-            adapter.setAll(PlayerManager.favoriteTracks());
+            java.util.List<Track> favs = PlayerManager.favoriteTracks();
+            adapter.setAll(favs);
             empty.setVisibility(adapter.isEmpty() ? View.VISIBLE : View.GONE);
             if (adapter.isEmpty()) empty.setText(R.string.fav_empty_hint);
+            if (tvStats != null) {
+                tvStats.setText(adapter.isEmpty()
+                        ? getString(R.string.stats_fav_empty)
+                        : getString(R.string.stats_fav, favs.size()));
+            }
         } else {
-            adapter.setAll(Tg.get(requireContext()).library);
+            java.util.List<Track> lib = Tg.get(requireContext()).library;
+            adapter.setAll(lib);
             empty.setVisibility(adapter.isEmpty() ? View.VISIBLE : View.GONE);
             if (adapter.isEmpty()) empty.setText(R.string.library_empty_hint);
+            if (tvStats != null) {
+                java.util.HashSet<Long> chats = new java.util.HashSet<>();
+                for (Track t : lib) chats.add(t.chatId);
+                tvStats.setText(adapter.isEmpty()
+                        ? getString(R.string.stats_lib_empty)
+                        : getString(R.string.stats_lib, lib.size(), chats.size()));
+            }
         }
     }
 
