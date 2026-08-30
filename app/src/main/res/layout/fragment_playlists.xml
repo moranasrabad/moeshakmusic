@@ -12,16 +12,6 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <ImageButton
-            android:id="@+id/btnBack"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/back"
-            android:src="@drawable/ic_back"
-            app:tint="?attr/colorOnSurface" />
-
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"

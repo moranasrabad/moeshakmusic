@@ -44,6 +44,7 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
     private TabLayout tabs;
     private TextView tvTitle;
     private SearchView searchBar;
+    private ImageView ivConn;
     private View miniPlayer;
     private ImageView miniArt;
     private TextView miniTitle, miniArtist;
@@ -52,23 +53,36 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
 
     /** صفحات اصلی — سواپ افقی */
     private static final int PAGE_TRACKS = 0;
-    private static final int PAGE_PLAYLISTS = 1;
-    private static final int PAGE_FAVORITES = 2;
-    private static final int PAGE_DOWNLOADS = 3;
-    private static final int PAGE_CHANNELS = 4;
-
-    private TracksFragment tracksFragment;
+    private static final int PAGE_FOLLOWED = 1;
+    private static final int PAGE_SCAN = 2;
+    private static final int PAGE_PLAYLISTS = 3;
+    private static final int PAGE_FAVORITES = 4;
+    private static final int PAGE_DOWNLOADS = 5;
+    private static final int PAGE_CHANNELS = 6;
+    private static final int PAGE_CHATS = 7;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // رنگ اکسنت — باید قبل از inflate شدن هر ویویی اعمال شود
+        try {
+            ir.moeshakteam.moeshakmusic.App.applyAccentTheme(this);
+        } catch (Throwable t) {
+            ir.moeshakteam.moeshakmusic.data.Tg.log("⚠️ accent: " + t);
+        }
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        try {
+            setContentView(R.layout.activity_main);
+        } catch (Throwable t) {
+            ir.moeshakteam.moeshakmusic.data.Tg.log("💥 setContentView: " + t);
+            throw t;
+        }
 
         drawer = findViewById(R.id.drawer);
         pager = findViewById(R.id.pager);
         tabs = findViewById(R.id.tabs);
         tvTitle = findViewById(R.id.tvPageTitle);
         searchBar = findViewById(R.id.searchBar);
+        ivConn = findViewById(R.id.ivConn);
         miniPlayer = findViewById(R.id.miniPlayer);
         miniArt = findViewById(R.id.miniArt);
         miniTitle = findViewById(R.id.miniTitle);
@@ -78,15 +92,27 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
 
         pager.setAdapter(new PagerAdapter(this));
         new com.google.android.material.tabs.TabLayoutMediator(tabs, pager, (tab, position) ->
-                tab.setText(new String[]{"TRACKS", "PLAYLISTS", "FAVORITES", "DOWNLOADS", "CHANNELS"}[position])
+                tab.setText(new String[]{
+                        getString(R.string.tab_tracks), getString(R.string.followed_tab),
+                        getString(R.string.tab_scan),
+                        getString(R.string.tab_playlists), getString(R.string.tab_favorites),
+                        getString(R.string.tab_downloads), getString(R.string.tab_channels),
+                        getString(R.string.tab_chats)}[position])
         ).attach();
 
         pager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
-                tvTitle.setText(new String[]{"TRACKS", "PLAYLISTS", "FAVORITES", "DOWNLOADS", "CHANNELS"}[position]);
-                // سرچ فقط روی TRACKS
-                searchBar.setVisibility(position == PAGE_TRACKS ? View.VISIBLE : View.GONE);
+                tvTitle.setText(new String[]{
+                        getString(R.string.tab_tracks), getString(R.string.followed_tab),
+                        getString(R.string.tab_scan),
+                        getString(R.string.tab_playlists), getString(R.string.tab_favorites),
+                        getString(R.string.tab_downloads), getString(R.string.tab_channels),
+                        getString(R.string.tab_chats)}[position]);
+                // سرچ روی TRACKS و FAVORITES
+                boolean searchable = position == PAGE_TRACKS || position == PAGE_FAVORITES;
+                searchBar.setVisibility(searchable ? View.VISIBLE : View.GONE);
+                if (!searchable) setQuery("");
             }
         });
 
@@ -94,7 +120,10 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
         findViewById(R.id.btnMenu).setOnClickListener(x -> drawer.openDrawer(Gravity.START));
         bindSideMenu();
 
-        // سرچ
+        // نشانگر اتصال/پروکسی — لمس ← صفحهٔ پروکسی
+        if (ivConn != null) ivConn.setOnClickListener(x -> showFullScreen(new ProxyFragment()));
+
+        // سرچ — مسیریابی زنده به لیست صفحهٔ فعلی (فیکس: قبلاً tracksFragment همیشه null بود)
         searchBar.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String q) {
@@ -103,14 +132,25 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
 
             @Override
             public boolean onQueryTextChange(String q) {
-                if (tracksFragment != null) tracksFragment.filter(q);
+                if (pager.getCurrentItem() == PAGE_FAVORITES) {
+                    if (TracksFragment.liveFavs != null) TracksFragment.liveFavs.filter(q);
+                } else if (TracksFragment.liveTracks != null) {
+                    TracksFragment.liveTracks.filter(q);
+                }
                 return true;
             }
         });
-        findViewById(R.id.btnSearchIcon).setOnClickListener(x -> {
-            searchBar.setIconified(false);
-            searchBar.requestFocus();
-        });
+        // ظاهر سرچ مثل استور: بدون پلیت داخلی + متن روشن
+        try {
+            View plate = searchBar.findViewById(androidx.appcompat.R.id.search_plate);
+            if (plate != null) plate.setBackgroundColor(0);
+            View srcText = searchBar.findViewById(androidx.appcompat.R.id.search_src_text);
+            if (srcText instanceof TextView) {
+                ((TextView) srcText).setHintTextColor(0xFF5B6B7B);
+                ((TextView) srcText).setTextColor(0xFFE8F2F8);
+            }
+        } catch (Throwable ignored) {
+        }
 
         // مینی‌پلیر
         miniPlayer.setOnClickListener(x -> {
@@ -125,48 +165,59 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
         Tg.get(this).addAuthListener(this);
     }
 
+    /** تایمر پایش دنبال‌شده‌ها — هر ۱۵ دقیقه تا وقتی اپ باز است */
+    private final android.os.Handler followHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private boolean followTimerStarted;
+
+    private void startFollowChecks() {
+        if (followTimerStarted) return;
+        followTimerStarted = true;
+        followHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (isFinishing() || isLoggedIn() == false) return;
+                Tg.get(MainActivity.this).checkFollowed(ok -> followHandler.postDelayed(this, 15 * 60 * 1000L));
+            }
+        }, 30_000);
+    }
+
+    private void setQuery(String q) {
+        searchBar.setQuery(q, false);
+        if (TracksFragment.liveTracks != null) TracksFragment.liveTracks.filter("");
+        if (TracksFragment.liveFavs != null) TracksFragment.liveFavs.filter("");
+    }
+
     private void bindSideMenu() {
-        View.OnClickListener go = x -> {
-            // بدون ورود، هیچ صفحه‌ای باز نمی‌شود (به‌جز تم)
-            if (Tg.get(this).auth() != Tg.Auth.READY && x.getId() != R.id.sideTheme) {
-                ir.moeshakteam.moeshakmusic.util.Ui.toast(this, "اول وارد اکانت شو ⚡");
-                return;
-            }
-            drawer.closeDrawer(Gravity.START);
-            int id = x.getId();
-            if (id == R.id.sideLibrary) {
-                pager.setCurrentItem(PAGE_TRACKS, true);
-            } else if (id == R.id.sidePlaylists) {
-                pager.setCurrentItem(PAGE_PLAYLISTS, true);
-            } else if (id == R.id.sideFavorites) {
-                List<Track> favs = PlayerManager.favoriteTracks();
-                if (favs.isEmpty()) {
-                    ir.moeshakteam.moeshakmusic.util.Ui.toast(this, getString(R.string.fav_empty));
-                    return;
+        // ساید منو فقط امکانات جانبی — همهٔ بخش‌ها تب هستند
+        // 💥 ضدکرش: هیچ findViewById نباید NPE بدهد حتی اگر XML تغییر کرد
+        try {
+            View.OnClickListener go = x -> {
+                try {
+                    drawer.closeDrawer(Gravity.START);
+                    int id = x.getId();
+                    if (id == R.id.sideProxy) {
+                        showFullScreen(new ProxyFragment());
+                    } else if (id == R.id.sideLog) {
+                        showFullScreen(new LogFragment());
+                    } else if (id == R.id.sideSettings) {
+                        showFullScreen(new SettingsFragment());
+                    } else if (id == R.id.sideTheme) {
+                        int mode = (Prefs.get(this).themeMode() + 1) % 3;
+                        Prefs.get(this).setThemeMode(mode);
+                        App.applyTheme(this);
+                    }
+                } catch (Throwable t) {
+                    ir.moeshakteam.moeshakmusic.data.Tg.log("⚠️ sideMenu tap: " + t);
                 }
-                PlayerManager.get(this).play(favs, 0);
-                openPlayer();
-            } else if (id == R.id.sideDownloads) {
-                pager.setCurrentItem(PAGE_DOWNLOADS, true);
-            } else if (id == R.id.sideChannels) {
-                pager.setCurrentItem(PAGE_CHANNELS, true);
-            } else if (id == R.id.sideChats) {
-                showFullScreen(new ChatsFragment());
-            } else if (id == R.id.sideProxy) {
-                showFullScreen(new ProxyFragment());
-            } else if (id == R.id.sideLog) {
-                showFullScreen(new LogFragment());
-            } else if (id == R.id.sideSettings) {
-                showFullScreen(new SettingsFragment());
-            } else if (id == R.id.sideTheme) {
-                int mode = (Prefs.get(this).themeMode() + 1) % 3;
-                Prefs.get(this).setThemeMode(mode);
-                App.applyTheme(this);
+            };
+            int[] ids = {R.id.sideProxy, R.id.sideLog, R.id.sideSettings, R.id.sideTheme};
+            for (int res : ids) {
+                View vv = findViewById(res);
+                if (vv != null) vv.setOnClickListener(go);
             }
-        };
-        int[] ids = {R.id.sideLibrary, R.id.sidePlaylists, R.id.sideFavorites, R.id.sideDownloads,
-                R.id.sideChannels, R.id.sideChats, R.id.sideProxy, R.id.sideLog, R.id.sideSettings, R.id.sideTheme};
-        for (int res : ids) findViewById(res).setOnClickListener(go);
+        } catch (Throwable t) {
+            ir.moeshakteam.moeshakmusic.data.Tg.log("⚠️ bindSideMenu: " + t);
+        }
     }
 
     public void showFullScreen(Fragment f) {
@@ -202,6 +253,11 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
                 .commit();
     }
 
+    /** پرش به تب (از منوهای فرگمنت‌های داخل pager) */
+    public void openTab(int index) {
+        pager.setCurrentItem(index, true);
+    }
+
     private void updateMini() {
         Track t = PlayerManager.get(this).current();
         if (t == null) {
@@ -211,9 +267,7 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
         miniPlayer.setVisibility(View.VISIBLE);
         miniTitle.setText(t.title);
         miniArtist.setText(t.subtitle());
-        Bitmap b = t.art();
-        if (b != null) miniArt.setImageBitmap(b);
-        else miniArt.setImageResource(R.drawable.bg_art);
+        ir.moeshakteam.moeshakmusic.data.ArtLoader.load(t, miniArt);
         miniToggle.setImageResource(PlayerManager.get(this).isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
         miniShuffle.setAlpha(PlayerManager.get(this).shuffle ? 1f : 0.45f);
     }
@@ -239,6 +293,34 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
         runOnUiThread(() -> route(a));
     }
 
+    /** نشانگر اتصال در هدر — مثل تلگرام: سبز=وصل، کهربایی=در حال اتصال، سرخ=قطع */
+    @Override
+    public void onConnState(String s) {
+        runOnUiThread(() -> {
+            try {
+                if (ivConn == null || isFinishing() || s == null) return;
+            int color;
+            switch (s) {
+                case "ready":
+                    color = 0xFF34D399;
+                    break;
+                case "waiting":
+                    color = 0xFFF87171;
+                    break;
+                default:
+                    color = 0xFFF59E0B;
+                    break;
+            }
+            // پروکسی فعال → سپر پررنگ؛ غیرفعال → کم‌رنگ
+            boolean proxyOn = Prefs.get(this).proxyEnabled();
+            ivConn.setAlpha(proxyOn ? 1f : 0.4f);
+            ivConn.setImageTintList(android.content.res.ColorStateList.valueOf(color));
+            } catch (Throwable t) {
+                ir.moeshakteam.moeshakmusic.data.Tg.log("⚠️ conn badge: " + t);
+            }
+        });
+    }
+
     private void route(Tg.Auth a) {
         try {
             Fragment cur = getSupportFragmentManager().findFragmentById(R.id.fullScreenContainer);
@@ -250,10 +332,19 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
                 View mp = findViewById(R.id.miniPlayer);
                 if (mp != null) mp.setVisibility(PlayerManager.get(this).current() != null ? View.VISIBLE : View.GONE);
                 requestNotifPermission();
+                // دسترسی میکروفن — فقط برای ویژوالایزر زندهٔ Now Playing
+                if (Build.VERSION.SDK_INT >= 23 &&
+                        ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                                != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, 12);
+                }
                 PlayerManager.get(this).attach(miniListener);
                 updateMini();
+                startFollowChecks();
             } else {
                 PlayerManager.get(this).detach(miniListener);
+                // در حال خروج/خاتمهٔ نشست — هنوز صفحهٔ ورود را نشان نده (toast خودش آمده)
+                if (a == Tg.Auth.LOGGING_OUT) return;
                 View mc = findViewById(R.id.mainContent);
                 if (mc != null) mc.setVisibility(View.GONE);
                 View mp = findViewById(R.id.miniPlayer);
@@ -317,12 +408,14 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
         @Override
         public Fragment createFragment(int position) {
             switch (position) {
+                case PAGE_FOLLOWED:
+                    return new FollowedFragment();
+                case PAGE_SCAN:
+                    return new ScanFragment();
                 case PAGE_PLAYLISTS:
                     return new PlaylistsFragment();
                 case PAGE_FAVORITES: {
-                    List<Track> favs = PlayerManager.favoriteTracks();
-                    androidx.appcompat.app.AlertDialog d = null;
-                    // صفحه علاقه‌مندی = همان تراک‌ها ولی فیلترشده — ساده: TracksFragment با فیلتر fav
+                    // صفحه علاقه‌مندی = همان تراک‌ها ولی فیلترشده — TracksFragment با فیلتر fav
                     TracksFragment tf = new TracksFragment();
                     Bundle b = new Bundle();
                     b.putBoolean("fav", true);
@@ -333,15 +426,16 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
                     return new DownloadsFragment();
                 case PAGE_CHANNELS:
                     return new ChannelsFragment();
+                case PAGE_CHATS:
+                    return new ChatsFragment();
                 default:
-                    TracksFragment tf = new TracksFragment();
-                    return tf;
+                    return new TracksFragment();
             }
         }
 
         @Override
         public int getItemCount() {
-            return 5;
+            return 8;
         }
     }
 }

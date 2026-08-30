@@ -56,10 +56,41 @@ public class DownloadsFragment extends Fragment {
         adapter = new DownloadsAdapter();
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         recycler.setAdapter(adapter);
+        View bDl = v.findViewById(R.id.btnDownloadChannel);
+        if (bDl != null) bDl.setOnClickListener(x -> pickChannelToDownload());
 
-        v.findViewById(R.id.btnBack).setOnClickListener(x ->
-                requireActivity().onBackPressed());
-        v.findViewById(R.id.btnDownloadChannel).setOnClickListener(x -> pickChannelToDownload());
+        // ---------- وایر کردن نوار انتخاب گروهی — تیم موشک ----------
+        selectionBar = v.findViewById(R.id.selectionBar);
+        tvSelCount = v.findViewById(R.id.tvSelCount);
+        if (selectionBar != null) {
+            selectionBar.setVisibility(View.GONE);
+            View bAll = v.findViewById(R.id.btnSelAll);
+            if (bAll != null) bAll.setOnClickListener(x -> {
+                for (DownloadStore.Entry e : adapter.getItems()) selected.add(e.key);
+                updateSelectionBar();
+                refresh();
+            });
+            View bNone = v.findViewById(R.id.btnSelNone);
+            if (bNone != null) bNone.setOnClickListener(x -> {
+                selected.clear();
+                updateSelectionBar();
+                refresh();
+            });
+            View bClose = v.findViewById(R.id.btnSelClose);
+            if (bClose != null) bClose.setOnClickListener(x -> exitSelection());
+            View bPl = v.findViewById(R.id.btnSelPlaylist);
+            if (bPl != null) bPl.setOnClickListener(x -> addSelectedToPlaylist());
+            View bDel = v.findViewById(R.id.btnSelDelete);
+            if (bDel != null) bDel.setOnClickListener(x -> deleteSelected());
+        }
+
+        // دکمهٔ «انتخاب» در هدر
+        View bSelect = v.findViewById(R.id.btnSelectMode);
+        if (bSelect != null) bSelect.setOnClickListener(x -> {
+            if (selectionMode) exitSelection();
+            else enterSelection();
+        });
+
         refresh();
     }
 
@@ -108,6 +139,97 @@ public class DownloadsFragment extends Fragment {
                 }).show();
     }
 
+    // ---------- انتخاب گروهی ----------
+    private boolean selectionMode;
+    private final java.util.Set<String> selected = new java.util.HashSet<>();
+    private View selectionBar;
+    private TextView tvSelCount;
+
+    private void enterSelection() {
+        selectionMode = true;
+        selected.clear();
+        updateSelectionBar();
+        refresh();
+    }
+
+    private void exitSelection() {
+        selectionMode = false;
+        selected.clear();
+        updateSelectionBar();
+        refresh();
+    }
+
+    private void updateSelectionBar() {
+        if (selectionBar == null || !isAdded()) return;
+        selectionBar.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
+        if (tvSelCount != null)
+            tvSelCount.setText(getString(R.string.sel_count, selected.size()));
+    }
+
+    private void toggleEntry(String key) {
+        if (!selected.remove(key)) selected.add(key);
+        updateSelectionBar();
+        refresh();
+    }
+
+    private void downloadSelected() {
+        List<Track> list = new ArrayList<>();
+        for (DownloadStore.Entry e : adapter.getItems()) {
+            if (selected.contains(e.key)) {
+                Track t = new Track();
+                t.chatId = parseChatId(e.key);
+                t.messageId = parseMsgId(e.key);
+                t.title = e.title;
+                t.chatTitle = e.chatTitle;
+                t.fileId = e.fileId;
+                t.expectedSize = e.size;
+                list.add(t);
+            }
+        }
+        if (list.isEmpty()) return;
+        Ui.toast(requireContext(), R.string.added_to_queue);
+        downloadNext(list, 0);
+    }
+
+    private void deleteSelected() {
+        int n = 0;
+        for (DownloadStore.Entry e : adapter.getItems()) {
+            if (selected.contains(e.key)) {
+                try {
+                    if (e.path != null && !e.path.isEmpty()) {
+                        java.io.File f = new java.io.File(e.path);
+                        if (f.exists() && f.delete()) Tg.log("🗑 گروهی: " + e.path);
+                    }
+                } catch (Throwable ignored) {
+                }
+                DownloadStore.get(requireContext()).remove(e.key);
+                n++;
+            }
+        }
+        selected.clear();
+        updateSelectionBar();
+        refresh();
+        Ui.toast(requireContext(), getString(R.string.sel_deleted, n));
+    }
+
+    private void addSelectedToPlaylist() {
+        List<Track> list = new ArrayList<>();
+        for (DownloadStore.Entry e : adapter.getItems()) {
+            if (selected.contains(e.key)) {
+                Track t = new Track();
+                t.chatId = parseChatId(e.key);
+                t.messageId = parseMsgId(e.key);
+                t.title = e.title;
+                t.chatTitle = e.chatTitle;
+                t.fileId = e.fileId;
+                t.expectedSize = e.size;
+                list.add(t);
+            }
+        }
+        if (!list.isEmpty())
+            ir.moeshakteam.moeshakmusic.ui.PlaylistPicker.show(requireActivity(), list);
+    }
+
     private void downloadChannel(long chatId) {
         Tg tg = Tg.get(requireContext());
         List<Track> queueDl = new ArrayList<>();
@@ -148,6 +270,10 @@ public class DownloadsFragment extends Fragment {
     private class DownloadsAdapter extends RecyclerView.Adapter<VH> {
         private List<DownloadStore.Entry> items = new ArrayList<>();
 
+        List<DownloadStore.Entry> getItems() {
+            return items;
+        }
+
         void setItems(List<DownloadStore.Entry> list) {
             items = list;
             notifyDataSetChanged();
@@ -165,6 +291,10 @@ public class DownloadsFragment extends Fragment {
             h.tvTitle.setText(e.title);
             h.tvSub.setText(e.chatTitle + " • " + Ui.fmtDuration((int) (e.size / 20000)));
             h.itemView.setOnClickListener(x -> {
+                if (selectionMode) {
+                    toggleEntry(e.key);
+                    return;
+                }
                 // پخش از فایل محلی
                 Track t = new Track();
                 t.chatId = parseChatId(e.key);
@@ -181,16 +311,20 @@ public class DownloadsFragment extends Fragment {
                     ((MainActivity) requireActivity()).openPlayer();
             });
             h.itemView.setOnLongClickListener(x -> {
-                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                        .setMessage(getString(R.string.delete_download_confirm, e.title))
-                        .setPositiveButton(R.string.yes, (d, w) -> {
-                            DownloadStore.get(requireContext()).remove(e.key);
-                            refresh();
-                            Ui.toast(requireContext(), "حذف شد از لیست");
-                        })
-                        .setNegativeButton(R.string.no, null).show();
+                if (!selectionMode) enterSelection();
+                toggleEntry(e.key);
                 return true;
             });
+            // نشان انتخاب
+            h.tvTitle.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, 0, 0);
+            if (selectionMode) {
+                h.tvTitle.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                        selected.contains(e.key) ? R.drawable.ic_download_done : 0, 0, 0, 0);
+                h.tvTitle.setCompoundDrawablePadding(8);
+                h.itemView.setAlpha(selected.contains(e.key) ? 1f : 0.75f);
+            } else {
+                h.itemView.setAlpha(1f);
+            }
         }
 
         @Override
