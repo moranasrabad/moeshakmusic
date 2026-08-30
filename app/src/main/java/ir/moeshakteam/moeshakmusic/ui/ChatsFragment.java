@@ -46,6 +46,7 @@ public class ChatsFragment extends Fragment {
     private RecyclerView recycler;
     private ProgressBar progress;
     private TextView empty, tvAccount;
+    private android.widget.EditText etSearch;
     private ChatAdapter adapter;
     private int selectedTab; // 0=اصلی 1=آرشیو 2+ = پوشه‌ها
     private long myId;
@@ -64,13 +65,25 @@ public class ChatsFragment extends Fragment {
         progress = v.findViewById(R.id.progress);
         empty = v.findViewById(R.id.empty);
         tvAccount = v.findViewById(R.id.tvAccount);
+        etSearch = v.findViewById(R.id.etChatSearch);
+        if (etSearch != null) etSearch.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+                adapter.filter(s == null ? "" : s.toString());
+            }
+        });
 
         adapter = new ChatAdapter();
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         recycler.setAdapter(adapter);
-
-        v.findViewById(R.id.btnBack).setOnClickListener(x ->
-                requireActivity().onBackPressed());
 
         Tg.get(requireContext()).getAccount((name, phone, id) -> main.post(() -> {
             if (isAdded()) {
@@ -199,11 +212,28 @@ public class ChatsFragment extends Fragment {
     // ---------- آداپتور ----------
 
     private class ChatAdapter extends RecyclerView.Adapter<VH> {
+        private List<TdApi.Chat> all = new ArrayList<>();
         private List<TdApi.Chat> items = new ArrayList<>();
+        private String query = "";
 
         void setItems(List<TdApi.Chat> list) {
-            items = list;
+            all = list;
+            refilter();
+        }
+
+        void filter(String q) {
+            query = q == null ? "" : q;
+            refilter();
+        }
+
+        private void refilter() {
+            items.clear();
+            String n = query.toLowerCase().trim();
+            for (TdApi.Chat c : all) {
+                if (n.isEmpty() || (c.title != null && c.title.toLowerCase().contains(n))) items.add(c);
+            }
             notifyDataSetChanged();
+            empty.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
         }
 
         @NonNull
@@ -222,6 +252,10 @@ public class ChatsFragment extends Fragment {
             h.tvCount.setVisibility(n > 0 ? View.VISIBLE : View.GONE);
             h.tvCount.setText(String.valueOf(n));
             h.itemView.setOnClickListener(x -> showChatTracks(c));
+            h.itemView.setOnLongClickListener(x -> {
+                showChatMenu(c);
+                return true;
+            });
         }
 
         @Override
@@ -241,6 +275,33 @@ public class ChatsFragment extends Fragment {
             tvCount = v.findViewById(R.id.tvCount);
             ivType = v.findViewById(R.id.ivType);
         }
+    }
+
+    /** منوی لمس طولانی چت: دنبال کردن / اسکن عمیق — تیم موشک */
+    private void showChatMenu(TdApi.Chat c) {
+        ir.moeshakteam.moeshakmusic.data.FollowStore fs =
+                ir.moeshakteam.moeshakmusic.data.FollowStore.get(requireContext());
+        boolean fol = fs.isFollowed(c.id);
+        String[] opts = {
+                fol ? getString(R.string.followed_unfollow) : getString(R.string.followed_follow),
+                getString(R.string.chat_deep_scan)
+        };
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(c.title == null ? "چت" : c.title)
+                .setItems(opts, (d, w) -> {
+                    if (w == 0) {
+                        if (fol) {
+                            fs.unfollow(c.id);
+                            Ui.toast(requireContext(), R.string.followed_unfollowed);
+                        } else {
+                            Tg.get(requireContext()).followAndDeepScan(c.id,
+                                    c.title == null ? "چت" : c.title);
+                            Ui.toast(requireContext(), R.string.followed_deep_started);
+                        }
+                    } else {
+                        deepScan(c);
+                    }
+                }).show();
     }
 
     private void deepScan(TdApi.Chat c) {

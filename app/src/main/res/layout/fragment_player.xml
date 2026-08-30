@@ -17,7 +17,7 @@
         app:layout_constraintTop_toTopOf="parent"
         app:tint="?attr/colorOnSurface" />
 
-    <ir.moeshakteam.moeshakmusic.viz.VisualizerView
+    <ir.moeshakteam.moeshakmusic.viz.NeonVisualizer
         android:id="@+id/viz"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -29,19 +29,22 @@
         app:layout_constraintTop_toBottomOf="@id/btnBack"
         app:layout_constraintVertical_bias="0.4" />
 
-    <ImageView
+    <!-- کاور: ۶۴٪ فضای ویژوالایزر تا میله‌های نئونی دورش دیده شوند -->
+    <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/art"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="@drawable/bg_glow"
-        android:padding="22dp"
-        android:scaleType="fitCenter"
+        android:scaleType="centerCrop"
         android:src="@drawable/bg_art"
         app:layout_constraintBottom_toBottomOf="@id/viz"
         app:layout_constraintDimensionRatio="1:1"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/viz" />
+        app:layout_constraintEnd_toEndOf="@id/viz"
+        app:layout_constraintHeight_percent="0.64"
+        app:layout_constraintStart_toStartOf="@id/viz"
+        app:layout_constraintTop_toTopOf="@id/viz"
+        app:layout_constraintWidth_percent="0.64"
+        app:shapeAppearanceOverlay="@style/CircleImg" />
 
     <LinearLayout
         android:id="@+id/titleBlock"

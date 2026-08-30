@@ -15,8 +15,6 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
-import android.widget.LinearLayout;
-import ir.moeshakteam.moeshakmusic.data.Prefs;
 
 import java.util.List;
 
@@ -26,7 +24,7 @@ import ir.moeshakteam.moeshakmusic.data.Tg;
 import ir.moeshakteam.moeshakmusic.player.PlayerManager;
 import ir.moeshakteam.moeshakmusic.util.Ui;
 
-/** صفحهٔ تراک‌ها — تیم موشک */
+/** صفحهٔ آهنگ‌ها + فیوریت — با انتخاب گروهی — تیم موشک */
 public class TracksFragment extends Fragment {
 
     private TrackAdapter adapter;
@@ -35,6 +33,10 @@ public class TracksFragment extends Fragment {
     private TextView empty;
     private boolean favOnly;
     private final Handler main = new Handler(Looper.getMainLooper());
+
+    // ---------- انتخاب گروهی ----------
+    private View selectionBar;
+    private TextView tvSelCount;
 
     @Nullable
     @Override
@@ -61,177 +63,144 @@ public class TracksFragment extends Fragment {
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         recycler.setAdapter(adapter);
 
-        swipe.setOnRefreshListener(this::scan);
-        // ساید منو
-        androidx.drawerlayout.widget.DrawerLayout drawer = v.findViewById(R.id.drawer);
-        if (drawer != null) {
-            View bm = v.findViewById(R.id.btnMenu);
-            if (bm != null) bm.setOnClickListener(x -> drawer.openDrawer(android.view.Gravity.START));
-            bindSideMenu(v, drawer);
+        // نوار انتخاب گروهی — تیم موشک
+        selectionBar = v.findViewById(R.id.selectionBar);
+        tvSelCount = v.findViewById(R.id.tvSelCount);
+        if (selectionBar != null) {
+            selectionBar.setVisibility(View.GONE);
+            adapter.setSelectionListener(count -> main.post(() -> {
+                if (!isAdded() || tvSelCount == null) return;
+                tvSelCount.setText(getString(R.string.sel_count, count));
+                selectionBar.setVisibility(count > 0 || adapter.isSelectionMode() ? View.VISIBLE : View.GONE);
+            }));
+            View bAll = v.findViewById(R.id.btnSelAll);
+            if (bAll != null) bAll.setOnClickListener(x -> adapter.selectAll());
+            View bNone = v.findViewById(R.id.btnSelNone);
+            if (bNone != null) bNone.setOnClickListener(x -> adapter.clearSelection());
+            View bClose = v.findViewById(R.id.btnSelClose);
+            if (bClose != null) bClose.setOnClickListener(x -> {
+                adapter.setSelectionMode(false);
+                selectionBar.setVisibility(View.GONE);
+            });
+            View bPlaylist = v.findViewById(R.id.btnSelPlaylist);
+            if (bPlaylist != null) bPlaylist.setOnClickListener(x -> {
+                List<Track> sel = adapter.getSelectedTracks();
+                if (!sel.isEmpty())
+                    ir.moeshakteam.moeshakmusic.ui.PlaylistPicker.show(requireActivity(), sel);
+            });
+            View bDownload = v.findViewById(R.id.btnSelDownload);
+            if (bDownload != null) bDownload.setOnClickListener(x -> downloadSelected());
+            // در تب فیوریت: دکمهٔ حذف گروهی = حذف از فیوریت‌ها
+            View bDelete = v.findViewById(R.id.btnSelDelete);
+            if (bDelete != null) {
+                bDelete.setVisibility(favOnly ? View.VISIBLE : View.GONE);
+                bDelete.setOnClickListener(x -> deleteSelectedFavs());
+            }
         }
 
-        Tg tg = Tg.get(requireContext());
-        if (!tg.library.isEmpty()) {
-            adapter.setAll(tg.library);
-            if (favOnly) {
-                java.util.List<Track> favs = PlayerManager.favoriteTracks();
-                adapter.setAll(favs);
-            }
-            empty.setVisibility(adapter.isEmpty() ? View.VISIBLE : View.GONE);
-        } else if (!favOnly) {
-            scan();
+        swipe.setOnRefreshListener(() -> {
+            refresh();
+            swipe.setRefreshing(false);
+        });
+        // دکمهٔ رفرش دستی — کنار عنوان
+        View bRefresh = v.findViewById(R.id.btnRefreshTracks);
+        if (bRefresh != null) bRefresh.setOnClickListener(x -> refresh());
+
+        // هوک رفرش زنده — بعد از اسکن/بازیابی
+        Tg.get(requireContext()).onLibraryChanged = () -> {
+            if (TracksFragment.liveTracks != null) TracksFragment.liveTracks.refresh();
+            if (TracksFragment.liveFavs != null) TracksFragment.liveFavs.refresh();
+        };
+
+        refresh();
+        if (favOnly) liveFavs = this;
+        else liveTracks = this;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        refresh();
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (liveFavs == this) liveFavs = null;
+        if (liveTracks == this) liveTracks = null;
+        super.onDestroyView();
+    }
+
+    /** نمونه‌های زنده — سرچ MainActivity به اینها مسیریابی می‌شود */
+    public static TracksFragment liveTracks;
+    public static TracksFragment liveFavs;
+
+    /** بارگذاری لیست از منبع (کتابخانه یا فیوریت‌ها) */
+    public void refresh() {
+        if (adapter == null || !isAdded()) return;
+        if (adapter.isSelectionMode()) {
+            adapter.setSelectionMode(false);
+            if (selectionBar != null) selectionBar.setVisibility(View.GONE);
         }
-        if (favOnly && adapter.isEmpty()) empty.setVisibility(View.VISIBLE);
+        if (favOnly) {
+            adapter.setAll(PlayerManager.favoriteTracks());
+            empty.setVisibility(adapter.isEmpty() ? View.VISIBLE : View.GONE);
+            if (adapter.isEmpty()) empty.setText(R.string.fav_empty_hint);
+        } else {
+            adapter.setAll(Tg.get(requireContext()).library);
+            empty.setVisibility(adapter.isEmpty() ? View.VISIBLE : View.GONE);
+            if (adapter.isEmpty()) empty.setText(R.string.library_empty_hint);
+        }
     }
 
     public void filter(String q) {
         if (adapter != null) adapter.filter(q);
     }
 
-    private void bindSideMenu(View v, androidx.drawerlayout.widget.DrawerLayout drawer) {
-        View.OnClickListener go = x -> {
-            drawer.closeDrawer(android.view.Gravity.START);
-            int id = x.getId();
-            if (id == R.id.sidePlaylists) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new PlaylistsFragment()).addToBackStack("pl").commit();
-            } else if (id == R.id.sideFavorites) {
-                List<Track> favs = PlayerManager.favoriteTracks();
-                if (favs.isEmpty()) {
-                    Ui.toast(requireContext(), getString(R.string.fav_empty));
-                    return;
-                }
-                PlayerManager.get(requireContext()).play(favs, 0);
-                if (getActivity() instanceof MainActivity) ((MainActivity) getActivity()).openPlayer();
-            } else if (id == R.id.sideDownloads) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new DownloadsFragment()).addToBackStack("dl").commit();
-            } else if (id == R.id.sideChannels) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new ChannelsFragment()).addToBackStack("cn").commit();
-            } else if (id == R.id.sideChats) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new ChatsFragment()).addToBackStack("ct").commit();
-            } else if (id == R.id.sideProxy) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new ProxyFragment()).addToBackStack("px").commit();
-            } else if (id == R.id.sideLog) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new LogFragment()).addToBackStack("lg").commit();
-            } else if (id == R.id.sideSettings) {
-                requireActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fullScreenContainer, new SettingsFragment()).addToBackStack("st").commit();
-            } else if (id == R.id.sideTheme) {
-                int mode = (Prefs.get(requireContext()).themeMode() + 1) % 3;
-                Prefs.get(requireContext()).setThemeMode(mode);
-                ir.moeshakteam.moeshakmusic.App.applyTheme(requireContext());
-            }
-        };
-        int[] ids = {R.id.sidePlaylists, R.id.sideFavorites, R.id.sideDownloads, R.id.sideChannels,
-                R.id.sideChats, R.id.sideProxy, R.id.sideLog, R.id.sideSettings, R.id.sideTheme};
-        for (int res : ids) {
-            View vv = v.findViewById(res);
-            if (vv != null) vv.setOnClickListener(go);
-        }
-    }
-
-    private void scan() {
-        Tg tg = Tg.get(requireContext());
-        if (tg.auth() != Tg.Auth.READY) return;
-        if (tg.isScanning()) {
-            Ui.toast(requireContext(), "اسکن در حال اجراست");
-            return;
-        }
-        String[] options = {"۵۰ چت اول (سریع)", "۱۰۰ چت اول", "۳۰۰ چت اول", "همهٔ چت‌ها (کامل)"};
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                .setTitle("اسکن دستی — چند چت؟")
-                .setItems(options, (d, w) -> {
-                    int count = w == 0 ? 50 : w == 1 ? 100 : w == 2 ? 300 : Integer.MAX_VALUE;
-                    doScan(count);
-                })
-                .setNegativeButton("انصراف", null)
-                .show();
-    }
-
-    private void doScan(int count) {
-        Tg tg = Tg.get(requireContext());
-        progress.setVisibility(tg.library.isEmpty() ? View.VISIBLE : View.GONE);
-        empty.setVisibility(View.GONE);
-        swipe.setRefreshing(true);
-        final long t0 = System.currentTimeMillis();
-        tg.scanRange(0, count, new Tg.ScanListener() {
-            @Override
-            public void onProgress(int found, int chats) {
-                main.post(() -> {
-                    if (!isAdded()) return;
-                    long sec = (System.currentTimeMillis() - t0) / 1000;
-                    progress.setVisibility(View.GONE);
-                    empty.setVisibility(View.VISIBLE);
-                    empty.setText("🔍 " + chats + " چت اسکن شد\n🎵 " + found + " موزیک پیدا شد\n⏱ " + sec + " ثانیه");
-                });
-            }
-
-            @Override
-            public void onDone(int total) {
-                main.post(() -> {
-                    if (!isAdded()) return;
-                    progress.setVisibility(View.GONE);
-                    swipe.setRefreshing(false);
-                    adapter.setAll(Tg.get(requireContext()).library);
-                    long sec = (System.currentTimeMillis() - t0) / 1000;
-                    empty.setVisibility(adapter.isEmpty() ? View.VISIBLE : View.GONE);
-                    if (adapter.isEmpty()) {
-                        empty.setText("🏁 تمام شد — چیزی پیدا نشد\n⏱ " + sec + " ثانیه");
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String msg) {
-                main.post(() -> {
-                    if (!isAdded()) return;
-                    progress.setVisibility(View.GONE);
-                    swipe.setRefreshing(false);
-                    Ui.toast(requireContext(), msg);
-                });
-            }
-        });
-    }
+    // ---------- منوی تراک ----------
 
     private void showTrackMenu(Track t, int pos) {
-        ir.moeshakteam.moeshakmusic.data.DownloadStore ds = ir.moeshakteam.moeshakmusic.data.DownloadStore.get(requireContext());
-        ir.moeshakteam.moeshakmusic.data.PlaylistStore ps = ir.moeshakteam.moeshakmusic.data.PlaylistStore.get(requireContext());
+        ir.moeshakteam.moeshakmusic.data.DownloadStore ds =
+                ir.moeshakteam.moeshakmusic.data.DownloadStore.get(requireContext());
+        ir.moeshakteam.moeshakmusic.data.PlaylistStore ps =
+                ir.moeshakteam.moeshakmusic.data.PlaylistStore.get(requireContext());
         boolean downloaded = ds.isDownloaded(t);
         java.util.List<String> opts = new java.util.ArrayList<>();
-        opts.add(downloaded ? "✓ دانلود شده" : "⬇️ دانلود");
-        opts.add("➕ افزودن به پلی‌لیست");
-        if (ps.all().size() > 0) opts.add("➖ حذف از پلی‌لیست");
-        opts.add("🔀 افزودن به صف");
+        opts.add(downloaded ? getString(R.string.downloaded_ok) : getString(R.string.download));
+        opts.add(getString(R.string.add_to_playlist));
+        if (ps.all().size() > 0) opts.add(getString(R.string.remove_from_playlist));
+        opts.add(getString(R.string.add_to_queue));
+        opts.add(getString(R.string.sel_enter));
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                 .setTitle(t.title)
                 .setItems(opts.toArray(new String[0]), (d, w) -> {
                     if (w == 0) {
                         if (!downloaded) startDownload(t);
                     } else if (w == 1) {
-                        ir.moeshakteam.moeshakmusic.ui.PlaylistPicker.show(requireActivity(), java.util.Collections.singletonList(t));
+                        ir.moeshakteam.moeshakmusic.ui.PlaylistPicker.show(requireActivity(),
+                                java.util.Collections.singletonList(t));
                     } else if (w == 2 && ps.all().size() > 0) {
                         String[] names = new String[ps.all().size()];
                         for (int i = 0; i < ps.all().size(); i++) names[i] = ps.all().get(i).name;
                         new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                                .setTitle("حذف از کدام پلی‌لیست؟")
+                                .setTitle(R.string.remove_from_which)
                                 .setItems(names, (d2, w2) -> {
                                     ps.removeTrack(names[w2], t.chatId, t.messageId);
-                                    Ui.toast(requireContext(), "حذف شد");
+                                    Ui.toast(requireContext(), R.string.removed);
                                 }).show();
-                    } else if (w == opts.size() - 1) {
+                    } else if (w == 3) {
                         PlayerManager.get(requireContext()).addToQueue(t);
-                        Ui.toast(requireContext(), "به صف اضافه شد");
+                        Ui.toast(requireContext(), R.string.added_to_queue);
+                    } else if (w == 4) {
+                        adapter.setSelectionMode(true);
+                        adapter.toggle(t);
+                        if (selectionBar != null) selectionBar.setVisibility(View.VISIBLE);
+                        Ui.toast(requireContext(), R.string.sel_hint);
                     }
                 }).show();
     }
 
     private void startDownload(Track t) {
-        Ui.toast(requireContext(), "⬇️ دانلود: " + t.title);
+        Ui.toast(requireContext(), "⬇️ " + t.title);
         Tg.get(requireContext()).download(t.fileId, t.expectedSize, new Tg.DownloadListener() {
             @Override
             public void onProgress(int pct) {
@@ -246,6 +215,64 @@ public class TracksFragment extends Fragment {
             @Override
             public void onError(String msg) {
                 main.post(() -> Ui.toast(requireContext(), "⚠️ " + msg));
+            }
+        });
+    }
+
+    /** حذف گروهی از فیوریت‌ها (فقط تب فیوریت) */
+    private void deleteSelectedFavs() {
+        List<Track> sel = adapter.getSelectedTracks();
+        int n = 0;
+        for (Track t : sel) {
+            if (PlayerManager.FAVORITES.remove(PlayerManager.key(t))) n++;
+        }
+        ir.moeshakteam.moeshakmusic.data.Tg.get(requireContext()).saveFavorites();
+        adapter.clearSelection();
+        adapter.setSelectionMode(false);
+        if (selectionBar != null) selectionBar.setVisibility(View.GONE);
+        refresh();
+        Ui.toast(requireContext(), n + " از فیوریت حذف شد");
+    }
+
+    // ---------- دانلود گروهی ----------
+
+    private void downloadSelected() {
+        List<Track> sel = adapter.getSelectedTracks();
+        ir.moeshakteam.moeshakmusic.data.DownloadStore ds =
+                ir.moeshakteam.moeshakmusic.data.DownloadStore.get(requireContext());
+        java.util.List<Track> toDl = new java.util.ArrayList<>();
+        for (Track t : sel) if (!ds.isDownloaded(t)) toDl.add(t);
+        if (toDl.isEmpty()) {
+            Ui.toast(requireContext(), R.string.sel_all_downloaded);
+            return;
+        }
+        Ui.toast(requireContext(), getString(R.string.channel_download_started, toDl.size()));
+        downloadChain(toDl, 0);
+    }
+
+    private void downloadChain(java.util.List<Track> list, int i) {
+        if (!isAdded()) return;
+        if (i >= list.size()) {
+            Ui.toast(requireContext(), R.string.channel_download_done);
+            refresh();
+            return;
+        }
+        Track t = list.get(i);
+        Tg.get(requireContext()).download(t.fileId, t.expectedSize, new Tg.DownloadListener() {
+            @Override
+            public void onProgress(int pct) {
+            }
+
+            @Override
+            public void onDone(String path) {
+                if (!isAdded()) return;
+                ir.moeshakteam.moeshakmusic.data.DownloadStore.get(requireContext()).mark(t, path);
+                main.post(() -> downloadChain(list, i + 1));
+            }
+
+            @Override
+            public void onError(String msg) {
+                main.post(() -> downloadChain(list, i + 1));
             }
         });
     }
