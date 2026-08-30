@@ -127,11 +127,15 @@ public class ScanFragment extends Fragment {
                 main.post(() -> {
                     if (!isAdded()) return;
                     long sec = (System.currentTimeMillis() - startedAt) / 1000;
+                    detail.setVisibility(View.VISIBLE);
                     detail.setText(getString(R.string.scan_progress_line, chats, found, sec));
-                    // نمایش زندهٔ نتایج — هم‌زمان با پیدا شدن
                     refreshResults();
                     updateButtons();
-                    if (found > startCount) bar.setIndeterminate(false);
+                    bar.setIndeterminate(false);
+                    int cap = depth == Integer.MAX_VALUE ? Math.max(chats, 1) : Math.max(depth, 1);
+                    bar.setMax(cap);
+                    bar.setProgress(Math.min(chats, cap));
+                    state.setText(getString(R.string.scan_status_bar, chats, found));
                 });
             }
 

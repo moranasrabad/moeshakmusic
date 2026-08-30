@@ -49,6 +49,11 @@ public final class ArtLoader {
     private ArtLoader() {
     }
 
+    /** کاور باکیفیت برای Now Playing */
+    public static void loadHi(Track t, ImageView iv) {
+        load(t, iv);
+    }
+
     /** ست کردن عکس روی ImageView — فوری اگر کش باشد، وگرنه async با placeholder گرادیان */
     public static void load(Track t, ImageView iv) {
         if (t == null || iv == null) return;
@@ -196,7 +201,9 @@ public final class ArtLoader {
                 in.close();
                 out.close();
             }
-            Bitmap b = BitmapFactory.decodeFile(dst.getAbsolutePath());
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inPreferredConfig = Bitmap.Config.ARGB_8888;
+            Bitmap b = BitmapFactory.decodeFile(dst.getAbsolutePath(), opts);
             if (b == null) //noinspection ResultOfMethodCallIgnored
                 dst.delete();
             return b;

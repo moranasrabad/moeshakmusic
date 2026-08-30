@@ -38,6 +38,7 @@ public class FollowedFragment extends Fragment {
     private RecyclerView recycler;
     private View empty;
     private final Handler main = new Handler(Looper.getMainLooper());
+    private final Runnable libHook = this::refreshSafe;
 
     @Nullable
     @Override
@@ -69,9 +70,8 @@ public class FollowedFragment extends Fragment {
             Tg.get(requireContext()).checkFollowed(ok -> main.post(this::refreshSafe));
         });
 
-        // هوک رفرش زنده
         Tg.get(requireContext()).onFollowedUpdate = this::refreshSafe;
-        Tg.get(requireContext()).onLibraryChanged = this::refreshSafe;
+        Tg.get(requireContext()).addLibraryListener(libHook);
 
         // پایش دوره‌ای
         startPeriodicCheck();
@@ -95,6 +95,12 @@ public class FollowedFragment extends Fragment {
     private void refreshSafe() {
         if (!isAdded()) return;
         main.post(this::refresh);
+    }
+
+    @Override
+    public void onDestroyView() {
+        try { Tg.get(requireContext()).removeLibraryListener(libHook); } catch (Throwable ignored) {}
+        super.onDestroyView();
     }
 
     @Override
@@ -156,7 +162,11 @@ public class FollowedFragment extends Fragment {
             }
         }
 
-        status.setText(getString(R.string.followed_status, fs.size()));
+        int followTracks = 0;
+        for (FollowStore.Followed f : fs) followTracks += f.knownIds.size();
+        status.setText(fs.isEmpty()
+                ? getString(R.string.stats_follow_empty)
+                : getString(R.string.stats_follow, fs.size(), followTracks));
 
         // آهنگ‌های جدید — فقط از چت‌های دنبال‌شده (نتایج اسکن جای خودشان: تب اسکن/کتابخانه)
         adapter.setAll(tg.followedResults);

@@ -44,7 +44,7 @@ public final class LibraryPersistence {
             for (int i = 0; i < arr.length(); i++) {
                 try {
                     Track t = parse(arr.getJSONObject(i));
-                    if (t != null && t.fileId != 0) out.add(t);
+                    if (t != null && t.messageId != 0) out.add(t);
                 } catch (Throwable ignored) {
                 }
             }

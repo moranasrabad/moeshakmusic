@@ -247,10 +247,11 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
     }
 
     public void openPlayer() {
-        getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fullScreenContainer, new PlayerFragment())
-                .addToBackStack("player")
-                .commit();
+        try {
+            showFullScreen(new PlayerFragment());
+        } catch (Throwable t) {
+            Tg.log("💥 openPlayer: " + t);
+        }
     }
 
     /** پرش به تب (از منوهای فرگمنت‌های داخل pager) */

@@ -280,4 +280,11 @@
     <string name="followed_card_meta">🔔 %1$d tracks seen • checked every 15 min</string>
     <string name="followed_unfollow_confirm">Unfollow "%1$s"?</string>
     <string name="followed_new_tracks">🆕 New tracks:</string>
+    <string name="stats_lib">🎵 %1$d tracks • %2$d chats</string>
+    <string name="stats_lib_empty">Library is empty — scan from the SCAN tab 🔍</string>
+    <string name="stats_fav">❤️ %1$d favorites</string>
+    <string name="stats_fav_empty">No favorites yet</string>
+    <string name="stats_follow">🔔 %1$d followed • %2$d tracks seen</string>
+    <string name="stats_follow_empty">Nothing followed yet</string>
+    <string name="scan_status_bar">Scan: %1$d chats • %2$d tracks</string>
 </resources>
