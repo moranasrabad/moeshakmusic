@@ -3,7 +3,7 @@ name: iOS Build
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, ios]
     paths:
       - 'MoeshakMusic-iOS/**'
       - '.github/workflows/ios.yml'
