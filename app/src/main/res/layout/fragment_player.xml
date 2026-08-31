@@ -17,7 +17,7 @@
         app:layout_constraintTop_toTopOf="parent"
         app:tint="?attr/colorOnSurface" />
 
-    <com.chibde.visualizer.CircleBarVisualizer
+    <ir.moeshakteam.moeshakmusic.viz.NeonCircleVisualizer
         android:id="@+id/viz"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -243,6 +243,16 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/playlists_title"
             android:src="@drawable/ic_playlist_add"
+            app:tint="?attr/colorOnSurfaceVariant" />
+
+        <ImageButton
+            android:id="@+id/btnDl"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginEnd="18dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/download"
+            android:src="@drawable/ic_download"
             app:tint="?attr/colorOnSurfaceVariant" />
 
         <ImageButton

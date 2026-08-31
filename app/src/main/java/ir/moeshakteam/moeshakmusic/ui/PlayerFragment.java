@@ -21,27 +21,28 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
-import com.chibde.visualizer.CircleBarVisualizer;
-
 import ir.moeshakteam.moeshakmusic.R;
+import ir.moeshakteam.moeshakmusic.data.DownloadStore;
+import ir.moeshakteam.moeshakmusic.data.Tg;
 import ir.moeshakteam.moeshakmusic.data.Track;
 import ir.moeshakteam.moeshakmusic.player.PlayerManager;
 import ir.moeshakteam.moeshakmusic.util.Ui;
+import ir.moeshakteam.moeshakmusic.viz.NeonCircleVisualizer;
 
 /**
  * صفحهٔ پخش (Now Playing) — تیم موشک
- * ویژوالایزر: میله‌های دایره‌ای واقعی (CircleBarVisualizer) که با موجِ صدای
- * در حال پخش می‌رقصند + کاور چرخان در مرکز حلقه.
+ * ویژوالایزر: حلقهٔ میله‌ای نرم (NeonCircleVisualizer) که با موجِ صدای
+ * در حال پخش می‌رقصد + کاور چرخان در مرکز حلقه + دکمهٔ دانلود و وضعیت آن.
  */
 public class PlayerFragment extends Fragment implements PlayerManager.Listener {
 
     private static final int REQ_MIC = 7;
 
-    private CircleBarVisualizer viz;
+    private NeonCircleVisualizer viz;
     private ImageView art;
     private TextView tvTitle, tvArtist, tvChat, tvCur, tvDur, dlText;
     private SeekBar seek;
-    private ImageButton btnPlay;
+    private ImageButton btnPlay, btnDl;
     private LinearLayout dlRow;
     private ProgressBar dlBar;
     private boolean userSeeking;
@@ -74,6 +75,7 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         dlRow = v.findViewById(R.id.dlRow);
         dlBar = v.findViewById(R.id.dlBar);
         dlText = v.findViewById(R.id.dlText);
+        btnDl = v.findViewById(R.id.btnDl);
 
         // رنگ میله‌ها از اکسنت اپ (با فالبک نئون فیروزه‌ای برند)
         if (viz != null) {
@@ -119,6 +121,11 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
             Track cur = pm.current();
             if (cur == null) return;
             addToPlaylistDialog(cur);
+        });
+        if (btnDl != null) btnDl.setOnClickListener(x -> {
+            Track cur = pm.current();
+            if (cur == null) return;
+            startDownload(cur);
         });
 
         seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -258,7 +265,7 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         tvArtist.setText(t.subtitle());
         tvChat.setText(t.chatTitle);
         updateSecondary();
-        // تامبنیل با لودر برند (مینی‌تامب ← کاور ← عکس کانال)
+        // تامبنیل: کاور خودِ موزیک اول، عکس کانال فقط فالبک
         ir.moeshakteam.moeshakmusic.data.ArtLoader.load(t, art);
         if (t.downloadPct >= 0) {
             dlRow.setVisibility(View.VISIBLE);
@@ -267,12 +274,84 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         } else {
             dlRow.setVisibility(View.GONE);
         }
+        updateDlState(t);
+    }
+
+    /** وضعیت دکمهٔ دانلود: ✓ اگر دانلود شده، عادی اگر نه */
+    private void updateDlState(Track t) {
+        if (btnDl == null || t == null) return;
+        boolean done = DownloadStore.get(requireContext()).isDownloaded(t);
+        btnDl.setImageResource(done ? R.drawable.ic_download_done : R.drawable.ic_download);
+        btnDl.setColorFilter(done ? 0xFF34D399
+                : getResources().getColor(R.color.moeshak_muted, requireActivity().getTheme()));
+    }
+
+    /** دانلود دستی آهنگ در حال پخش + نمایش پیشرفت زنده */
+    private void startDownload(Track t) {
+        if (DownloadStore.get(requireContext()).isDownloaded(t)) {
+            Ui.toast(requireContext(), R.string.downloaded_ok);
+            updateDlState(t);
+            return;
+        }
+        if (t.downloadPct >= 0) {
+            Ui.toast(requireContext(), R.string.downloading_now);
+            return;
+        }
+        t.downloadPct = 0;
+        dlRow.setVisibility(View.VISIBLE);
+        dlBar.setProgress(0);
+        dlText.setText(getString(R.string.downloading, 0));
+        Tg.get(requireContext()).downloadTrack(t, new Tg.DownloadListener() {
+            @Override
+            public void onProgress(int pct) {
+                t.downloadPct = pct;
+                if (!isAdded()) return;
+                requireActivity().runOnUiThread(() -> {
+                    Track cur = pm.current();
+                    if (cur == null || !cur.sameAs(t)) return;
+                    dlRow.setVisibility(View.VISIBLE);
+                    dlBar.setProgress(pct);
+                    dlText.setText(getString(R.string.downloading, pct));
+                });
+            }
+
+            @Override
+            public void onDone(String path) {
+                t.downloadPct = -1;
+                t.cachedPath = path;
+                DownloadStore.get(requireContext()).mark(t, path);
+                if (!isAdded()) return;
+                requireActivity().runOnUiThread(() -> {
+                    Track cur = pm.current();
+                    if (cur == null || !cur.sameAs(t)) return;
+                    dlRow.setVisibility(View.GONE);
+                    updateDlState(t);
+                    Ui.toast(requireContext(), R.string.download_done);
+                });
+            }
+
+            @Override
+            public void onError(String msg) {
+                t.downloadPct = -2;
+                if (!isAdded()) return;
+                requireActivity().runOnUiThread(() -> {
+                    Track cur = pm.current();
+                    if (cur == null || !cur.sameAs(t)) return;
+                    dlRow.setVisibility(View.GONE);
+                    Ui.toast(requireContext(), getString(R.string.err_generic, msg));
+                });
+            }
+        });
     }
 
     @Override
     public void onTrackChanged(Track t) {
         if (!isAdded()) return;
-        requireActivity().runOnUiThread(() -> bindTrack(t));
+        requireActivity().runOnUiThread(() -> {
+            bindTrack(t);
+            // ریبایند ویژوالایزر — session صوتی ممکن است با هر ترک عوض شود
+            pm.onTrackChanged();
+        });
     }
 
     @Override
@@ -308,6 +387,7 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
                 Ui.toast(requireContext(), getString(R.string.err_generic, err));
             } else if (path != null) {
                 dlRow.setVisibility(View.GONE);
+                updateDlState(t);
             } else if (pct >= 0) {
                 dlRow.setVisibility(View.VISIBLE);
                 dlBar.setProgress(pct);

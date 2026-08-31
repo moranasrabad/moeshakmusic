@@ -24,7 +24,7 @@ import ir.moeshakteam.moeshakmusic.td.TdClient;
 
 /**
  * لودر تامبنیل تراک‌ها — تیم موشک
- * ترتیب: مینی‌تامب داخل پیام ← کاور آلبوم (thumbFileId) ← عکس چت/کانال ← گرادیان برند.
+ * ترتیب: کاور خودِ موزیک (کاور آلبوم thumbFileId ← مینی‌تامب) ← عکس چت/کانال ← گرادیان برند.
  * کش حافظه + کش دیسک (art/) + دانلودهای کوچک همگام در thread پس‌زمینه.
  */
 public final class ArtLoader {
@@ -77,13 +77,6 @@ public final class ArtLoader {
     /** گرفتن همگام اگر موجود باشد (کش حافظه/دیسک) — thread پس‌زمینه */
     public static Bitmap fromCache(Track t) {
         if (t.artBitmap != null) return t.artBitmap;
-        if (t.artMini != null) {
-            Bitmap b = MEM.get("m:" + t.chatId + ":" + t.messageId);
-            if (b != null) {
-                t.artBitmap = b;
-                return b;
-            }
-        }
         if (t.thumbFileId > 0) {
             Bitmap b = MEM.get("f:" + t.thumbFileId);
             if (b != null) {
@@ -95,6 +88,13 @@ public final class ArtLoader {
                 MEM.put("f:" + t.thumbFileId, d);
                 t.artBitmap = d;
                 return d;
+            }
+        }
+        if (t.artMini != null) {
+            Bitmap b = MEM.get("m:" + t.chatId + ":" + t.messageId);
+            if (b != null) {
+                t.artBitmap = b;
+                return b;
             }
         }
         if (t.chatPhotoFileId > 0) {
@@ -114,7 +114,8 @@ public final class ArtLoader {
     }
 
     private static Bitmap fetch(Track t) {
-        // ۱) کاور آلبوم (تا ۳۲۰px — باکیفیت‌ترین)
+        // ترتیب: کاور خودِ موزیک اول، عکس کانال فقط وقتی موزیک کاور ندارد.
+        // ۱) کاور آلبوم/فایل (thumbFileId — باکیفیت‌ترین)
         if (t.thumbFileId > 0) {
             Bitmap b = downloadIfFree(t.thumbFileId);
             if (b != null) {
@@ -122,15 +123,7 @@ public final class ArtLoader {
                 return b;
             }
         }
-        // ۲) عکس چت/کانال
-        if (t.chatPhotoFileId > 0) {
-            Bitmap b = downloadIfFree(t.chatPhotoFileId);
-            if (b != null) {
-                t.artBitmap = b;
-                return b;
-            }
-        }
-        // ۳) مینی‌تامب داخل خود پیام (کوچک ~۹۰px — آخرین گزینه)
+        // ۲) مینی‌تامب داخل خود پیام (کاور موزیک، کوچک)
         if (t.artMini != null) {
             Bitmap b = MEM.get("m:" + t.chatId + ":" + t.messageId);
             if (b == null) {
@@ -140,6 +133,14 @@ public final class ArtLoader {
                 }
                 if (b != null) MEM.put("m:" + t.chatId + ":" + t.messageId, b);
             }
+            if (b != null) {
+                t.artBitmap = b;
+                return b;
+            }
+        }
+        // ۳) عکس چت/کانال (فالبک)
+        if (t.chatPhotoFileId > 0) {
+            Bitmap b = downloadIfFree(t.chatPhotoFileId);
             if (b != null) {
                 t.artBitmap = b;
                 return b;

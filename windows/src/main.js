@@ -338,6 +338,8 @@ function registerIpc() {
           return true
         }
         case 'file.download': await ensureTg().downloadFile(payload.fileId, 32); return true
+        case 'file.cancel': await ensureTg().cancelDownloadFile(payload.fileId); return true
+        case 'app.version': return app.getVersion()
         case 'file.path': {
           const f = await ensureTg().getFile(payload.fileId)
           return { path: (f && f.completed) ? f.path : '', completed: !!(f && f.completed) }

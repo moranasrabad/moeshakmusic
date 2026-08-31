@@ -25,7 +25,9 @@ const I18N = {
     apiHint: 'بعد از تغییر، اپ را ری‌استارت کن', save: 'ذخیره',
     connReady: 'اتصال برقرار است', connConnecting: 'در حال اتصال…', connWaiting: 'در انتظار شبکه…', connUpdating: 'به‌روزرسانی…',
     logoutConfirm: 'از حساب خارج شوی؟', yes: 'بله', no: 'نه',
-    scanDone: 'اسکن تمام شد', track: 'آهنگ'
+    scanDone: 'اسکن تمام شد', track: 'آهنگ',
+    downloaded: 'دانلود شده ✓', downloading: 'در حال دانلود…', cancel: 'لغو',
+    version: 'نسخه', activeDownloads: 'دانلودهای فعال'
   },
   en: {
     appName: 'Moeshak Music', loginSub: 'Telegram music player — powered by TDLib',
@@ -47,7 +49,9 @@ const I18N = {
     apiHint: 'Restart the app after changing', save: 'Save',
     connReady: 'Connected', connConnecting: 'Connecting…', connWaiting: 'Waiting for network…', connUpdating: 'Updating…',
     logoutConfirm: 'Log out?', yes: 'Yes', no: 'No',
-    scanDone: 'Scan finished', track: 'track'
+    scanDone: 'Scan finished', track: 'track',
+    downloaded: 'Downloaded ✓', downloading: 'Downloading…', cancel: 'Cancel',
+    version: 'Version', activeDownloads: 'Active downloads'
   }
 }
 let LANG = 'fa'
@@ -78,8 +82,10 @@ function fmt(sec) {
 }
 function artUrl(fileId) { return fileId ? ('moeshak-art://' + fileId) : '' }
 function coverOf(track) {
-  const id = track.albumCoverFileId || track.chatPhotoFileId || 0
-  return artUrl(id)
+  // کاور خودِ موزیک اول: تامبنیل آلبوم ← مینی‌تامب — عکس کانال فقط فالبک
+  if (track.albumCoverFileId) return artUrl(track.albumCoverFileId)
+  if (track.albumCoverMini) return track.albumCoverMini
+  return artUrl(track.chatPhotoFileId || 0)
 }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
 
@@ -95,11 +101,18 @@ api.on('connection', d => {
   if (el) el.textContent = t(map[d.state] || 'connConnecting')
 })
 api.on('scan', renderScanProgress)
-api.on('file', info => { if (info && info.id) { S.dlInfo[info.id] = info; if (S.tab === 'downloads') renderDownloads() } })
+api.on('file', info => {
+  if (info && info.id) {
+    S.dlInfo[info.id] = info
+    if (S.tab === 'downloads') renderDownloads()
+    if (S.tab === 'settings') renderSettingsDl()
+    renderNowDl()
+  }
+})
 api.on('lib', list => { S.tracks = list; if (S.tab === 'tracks') renderTracks() })
 api.on('fav', list => { S.favorites = list; if (S.tab === 'favorites') renderFavorites() })
 api.on('pl', list => { S.playlists = list; if (S.tab === 'playlists' || S.tab === 'playlist') renderPlaylists() })
-api.on('dl', list => { S.downloads = list; if (S.tab === 'downloads') renderDownloads() })
+api.on('dl', list => { S.downloads = list; if (S.tab === 'downloads') renderDownloads(); renderNowDl() })
 api.on('log', entry => { const box = $('#logBox'); if (box && S.tab === 'log') appendLog(entry) })
 
 // ---------------- boot ----------------
@@ -314,6 +327,77 @@ function renderDownloads() {
   })
 }
 
+// ---------------- download status helpers ----------------
+function isTrackDownloaded(track) {
+  if (!track) return false
+  const info = S.dlInfo[track.fileId]
+  return !!(info && info.completed)
+}
+function nowDlInfo() {
+  if (!S.current) return null
+  return S.dlInfo[S.current.fileId] || null
+}
+function activeDlList() {
+  const out = []
+  for (const key of Object.keys(S.dlInfo)) {
+    const f = S.dlInfo[key]
+    if (!f || f.completed) continue
+    if (f.downloading || (f.downloaded || 0) > 0) {
+      out.push({ id: f.id, prog: f.size ? Math.min(100, Math.round(100 * (f.downloaded || 0) / f.size)) : 0 })
+    }
+  }
+  return out
+}
+function downloadCurrent() {
+  const track = S.current
+  if (!track) return
+  if (isTrackDownloaded(track)) { toast(t('downloaded')); return }
+  api.invoke('dl.add', { track })
+  renderNowDl()
+}
+function renderNowDl() {
+  const btn = $('#npDl'), status = $('#npDlStatus'), pbDl = $('#pbDl')
+  if (!S.current) return
+  const info = nowDlInfo()
+  const done = isTrackDownloaded(S.current)
+  let label, busy = false
+  if (done) label = t('downloaded')
+  else if (info && (info.downloading || (info.downloaded || 0) > 0)) {
+    const prog = info.size ? Math.min(100, Math.round(100 * info.downloaded / info.size)) : 0
+    label = t('downloading') + ' ' + prog + '%'
+    busy = true
+  } else label = t('download')
+  if (btn) { btn.textContent = done ? '✓' : '⬇'; btn.classList.toggle('busy', busy) }
+  if (status) status.textContent = label
+  if (pbDl) pbDl.textContent = done ? '✓' : '⬇'
+}
+function renderSettingsDl() {
+  const box = $('#dlActiveBox')
+  if (!box) return
+  const actives = activeDlList()
+  box.innerHTML = ''
+  if (!actives.length) return
+  const rows = actives.map(a => {
+    const track = S.downloads.find(t => t.fileId === a.id) || S.tracks.find(t => t.fileId === a.id)
+    const title = track ? track.title : ('#' + a.id)
+    return `<div class="track-row">
+      <div class="track-meta">
+        <div class="track-title">${esc(title)}</div>
+        <div class="track-sub">${a.prog}%</div>
+        <div class="progress-bar" style="margin-top:4px"><div class="progress-fill" style="width:${a.prog}%"></div></div>
+      </div>
+      <div class="track-actions">
+        <button class="ic" data-cancel="${a.id}" title="${t('cancel')}">✕</button>
+      </div>
+    </div>`
+  }).join('')
+  box.innerHTML = `<p class="section-label">${t('activeDownloads')}</p>` + rows
+  box.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => {
+    api.invoke('file.cancel', { fileId: parseInt(b.dataset.cancel, 10) })
+    toast('✕ ' + t('cancel'))
+  })
+}
+
 function renderScan() {
   const body = $('#tabBody')
   const chats = S.channels.length ? S.channels : S.chats
@@ -477,6 +561,7 @@ function renderSettings() {
   const body = $('#tabBody')
   const s = S.settings
   body.innerHTML = `
+    <div class="set-row"><div><label>${t('version')}</label></div><div id="verValue" class="hint">—</div></div>
     <div class="set-row"><div><label>${t('theme')}</label></div>
       <select id="setTheme" class="set-select">
         <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>${t('dark')}</option>
@@ -498,6 +583,7 @@ function renderSettings() {
       <option value="http" ${s.proxy && s.proxy.type === 'http' ? 'selected' : ''}>HTTP</option>
     </select>
     <button id="pxSave" class="btn primary" style="margin-top:10px">${t('proxySave')}</button>
+    <div id="dlActiveBox"></div>
     <p class="section-label">${t('apiKeys')}</p>
     <input id="apiIdInput" placeholder="${t('apiId')}" dir="ltr" value="${esc(s.apiId || '')}" />
     <input id="apiHashInput" placeholder="${t('apiHash')}" dir="ltr" value="${esc(s.apiHash || '')}" style="margin-top:8px" />
@@ -519,6 +605,8 @@ function renderSettings() {
     await api.invoke('settings.set', { patch: { apiId: $('#apiIdInput').value.trim(), apiHash: $('#apiHashInput').value.trim() } })
     toast('✓ — ' + t('apiHint'))
   }
+  renderSettingsDl()
+  api.invoke('app.version').then(v => { const el = $('#verValue'); if (el && v) el.textContent = 'v' + v }).catch(() => {})
 }
 
 function accentHex(c) {
@@ -597,6 +685,8 @@ function setMeta(track) {
     navigator.mediaSession.metadata = new MediaMetadata(md)
   }
   updateNowPlaying()
+  renderNowDl()
+  vizReset()
 }
 
 function playList(list, index) {
@@ -675,6 +765,8 @@ $('#pbSeek').oninput = e => seek(e.target.value)
 $('#npSeek').oninput = e => seek(e.target.value)
 $('#pbExpand').onclick = () => $('#np').classList.remove('hidden')
 $('#npClose').onclick = () => $('#np').classList.add('hidden')
+$('#npDl').onclick = downloadCurrent
+$('#pbDl').onclick = downloadCurrent
 
 // media keys
 if ('mediaSession' in navigator) {
@@ -687,7 +779,24 @@ if ('mediaSession' in navigator) {
 }
 
 // ---------------- visualizer ----------------
-let audioCtx = null, analyser = null, vizSource = false, vizRaf = null
+// نرم + همیشه‌نمایان: گذار نرم بین فریم‌ها + ریبایند خودکار موقع تعویض ترک.
+// AudioContext/MediaElementSource فقط یک‌بار ساخته می‌شوند (قانون Chromium) و
+// موقع تعویض ترک فقط بافر نرم‌سازی ریست می‌شود تا میله‌ها از صفر دوباره بالا بیایند.
+let audioCtx = null, analyser = null, vizRaf = null
+let vizValues = null
+const VIZ_BARS = 64
+const VIZ_SMOOTH = 0.35
+
+function teardownViz() {
+  if (vizRaf) { cancelAnimationFrame(vizRaf); vizRaf = null }
+  vizValues = null
+}
+
+function vizReset() {
+  teardownViz()
+  if (S.playing) startViz()
+}
+
 function startViz() {
   const cv = $('#viz')
   if (!cv) return
@@ -696,14 +805,12 @@ function startViz() {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)()
       analyser = audioCtx.createAnalyser()
       analyser.fftSize = 256
-      if (!vizSource) {
-        const src = audioCtx.createMediaElementSource(audio)
-        src.connect(analyser); analyser.connect(audioCtx.destination)
-        vizSource = true
-      }
+      analyser.smoothingTimeConstant = 0.75
+      const src = audioCtx.createMediaElementSource(audio)
+      src.connect(analyser); analyser.connect(audioCtx.destination)
     } catch (e) { return }
   }
-  if (audioCtx.state === 'suspended') audioCtx.resume()
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {})
   if (vizRaf) return
   const ctx = cv.getContext('2d')
   const draw = () => {
@@ -711,14 +818,29 @@ function startViz() {
     const w = cv.width = cv.clientWidth
     const h = cv.height = cv.clientHeight
     ctx.clearRect(0, 0, w, h)
-    const data = analyser ? new Uint8Array(analyser.frequencyBinCount) : null
-    if (data) analyser.getByteFrequencyData(data)
-    const bars = 64
+    const freq = analyser.frequencyBinCount || 128
+    const raw = new Uint8Array(freq)
+    analyser.getByteFrequencyData(raw)
+    if (!vizValues) {
+      vizValues = new Float32Array(VIZ_BARS)
+      vizValues.fill(0.02)
+    }
+    // اگر همهٔ بایت‌ها صفر بود (هنوز دیتایی نرسیده) پالس آرام نمایش بده
+    let anySound = false
+    for (let k = 0; k < raw.length; k++) { if (raw[k] > 0) { anySound = true; break } }
     const gap = 2
-    const bw = (w - gap * (bars - 1)) / bars
+    const bw = (w - gap * (VIZ_BARS - 1)) / VIZ_BARS
     const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#a855f7'
-    for (let i = 0; i < bars; i++) {
-      const v = data ? data[Math.floor(i * data.length / bars)] / 255 : 0.02
+    const binPer = raw.length / VIZ_BARS
+    for (let i = 0; i < VIZ_BARS; i++) {
+      let target
+      if (anySound) {
+        target = raw[Math.floor(i * binPer)] / 255
+      } else {
+        target = 0.04 + 0.03 * Math.sin(Date.now() / 300 + i * 0.6)
+      }
+      vizValues[i] += (target - vizValues[i]) * VIZ_SMOOTH
+      const v = vizValues[i]
       const bh = Math.max(3, v * h * 0.9)
       ctx.fillStyle = accent
       ctx.globalAlpha = 0.25 + v

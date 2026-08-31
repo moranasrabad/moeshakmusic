@@ -57,7 +57,7 @@
     <string name="about">درباره</string>
     <string name="made_by">ساخته‌شده با 🚀 توسط تیم موشک</string>
     <string name="visit_site">moeshakteam.ir</string>
-    <string name="version">نسخه ۵.۹.۵</string>
+    <string name="version">نسخه —</string>
     <string name="back">بازگشت</string>
 
     <!-- خطاها و وضعیت‌ها -->
@@ -163,6 +163,7 @@
     <string name="downloads_title">دانلودها</string>
     <string name="downloads_empty">هنوز چیزی دانلود نشده — روی آهنگ لمس طولانی بزن و «دانلود» رو انتخاب کن</string>
     <string name="downloading_now">در حال دانلود</string>
+    <string name="side_downloads">دانلودها</string>
     <string name="download_cancel">لغو دانلود</string>
     <string name="download_cancelled">دانلود لغو شد</string>
     <string name="channel_tracks_title">آهنگ‌های «%1$s»</string>

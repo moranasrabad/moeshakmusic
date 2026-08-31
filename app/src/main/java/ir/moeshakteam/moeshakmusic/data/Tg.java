@@ -1263,6 +1263,12 @@ public final class Tg implements TdClient.UpdateHandler {
                 t.duration = a.optInt("duration");
                 t.fileId = f.optInt("id");
                 t.size = f.optLong("expected_size", f.optLong("size"));
+                // کاور خود موزیک: تامبنیل آلبوم (باکیفیت) + مینی‌تامب
+                org.json.JSONObject coverThumb = a.optJSONObject("album_cover_thumbnail");
+                if (coverThumb != null) {
+                    org.json.JSONObject cf = coverThumb.optJSONObject("file");
+                    if (cf != null) t.thumbFileId = cf.optInt("id");
+                }
                 org.json.JSONObject mini = a.optJSONObject("album_cover_minithumbnail");
                 if (mini != null) {
                     try {
@@ -1283,6 +1289,12 @@ public final class Tg implements TdClient.UpdateHandler {
                 t.performer = "فایل";
                 t.fileId = f.optInt("id");
                 t.size = f.optLong("expected_size", f.optLong("size"));
+                // کاور فایل صوتی (thumbnail سند) — اگر فرستنده گذاشته باشد
+                org.json.JSONObject dThumb = d.optJSONObject("thumbnail");
+                if (dThumb != null) {
+                    org.json.JSONObject df = dThumb.optJSONObject("file");
+                    if (df != null) t.thumbFileId = df.optInt("id");
+                }
                 out.add(t);
             }
         }

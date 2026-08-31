@@ -9,7 +9,7 @@ import android.os.Looper;
 
 import androidx.core.content.ContextCompat;
 
-import com.chibde.visualizer.CircleBarVisualizer;
+import ir.moeshakteam.moeshakmusic.viz.NeonCircleVisualizer;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.PlaybackException;
@@ -115,8 +115,18 @@ public final class PlayerManager {
         return index - 1 >= 0 ? index - 1 : (repeatMode == 1 ? queue.size() - 1 : -1);
     }
     private final Handler main = new Handler(Looper.getMainLooper());
-    private CircleBarVisualizer vizView;
+    private NeonCircleVisualizer vizView;
     private int vizSessionId;
+
+    private final Runnable vizRetry = new Runnable() {
+        @Override
+        public void run() {
+            bindVisualizer();
+            if (vizView != null && player != null && player.isPlaying()) {
+                main.postDelayed(this, 500);
+            }
+        }
+    };
 
     private final Runnable ticker = new Runnable() {
         @Override
@@ -365,7 +375,7 @@ public final class PlayerManager {
     // ---------- ویژوالایزر ----------
 
     /** وصل کردن ویوی میله‌ای به session صوتی ExoPlayer */
-    public void setVisualizerSession(CircleBarVisualizer v) {
+    public void setVisualizerSession(NeonCircleVisualizer v) {
         vizView = v;
         bindVisualizer();
     }
@@ -388,6 +398,13 @@ public final class PlayerManager {
             vizSessionId = sid;
         } catch (Throwable ignored) {
         }
+    }
+
+    /** ریبایند ویژوالایزر وقتی track عوض می‌شود (session id ممکن است تغییر کند). */
+    public void onTrackChanged() {
+        vizSessionId = 0;
+        main.removeCallbacks(vizRetry);
+        main.post(vizRetry);
     }
 
     // ---------- listener ها ----------

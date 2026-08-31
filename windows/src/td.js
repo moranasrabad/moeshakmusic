@@ -42,7 +42,7 @@ class Tg {
         use_message_database: true,
         use_secret_chats: false,
         system_language_code: 'fa',
-        application_version: '5.10.3',
+        application_version: '5.10.6',
         device_model: 'Moeshak Music Desktop',
         system_version: os.platform() + ' ' + os.release()
       }
@@ -179,6 +179,9 @@ class Tg {
     return this.invoke({ _: 'downloadFile', file_id: fileId, priority, offset: 0, limit: 0, synchronous: false })
       .then(fileToInfo)
   }
+  cancelDownloadFile(fileId) {
+    return this.invoke({ _: 'cancelDownloadFile', file_id: fileId, only_if_pending: false }).catch(() => {})
+  }
   async readFilePart(fileId, offset, count) {
     const r = await this.invoke({ _: 'readFilePart', file_id: fileId, offset, count: Math.min(count, CHUNK) })
     return r && r.data ? Buffer.from(r.data, 'base64') : Buffer.alloc(0)
@@ -238,7 +241,7 @@ function chatToInfo(c) {
 
 function extractTrack(m, chatId, chatTitle) {
   const c = m.content || {}
-  let title, performer, duration, doc, coverFileId = 0, mime = 'audio/mpeg'
+  let title, performer, duration, doc, coverFileId = 0, coverMini = '', mime = 'audio/mpeg'
   if (c._ === 'messageAudio' && c.audio) {
     const a = c.audio
     title = a.title || ''
@@ -247,6 +250,9 @@ function extractTrack(m, chatId, chatTitle) {
     doc = a.audio
     mime = (doc && doc.mime_type) || 'audio/mpeg'
     if (a.album_cover_thumbnail && a.album_cover_thumbnail.file) coverFileId = a.album_cover_thumbnail.file.id
+    if (a.album_cover_minithumbnail && a.album_cover_minithumbnail.data) {
+      coverMini = 'data:image/jpeg;base64,' + a.album_cover_minithumbnail.data
+    }
   } else if (c._ === 'messageVoiceNote' && c.voice_note) {
     title = 'Voice Note'
     performer = ''
@@ -272,7 +278,8 @@ function extractTrack(m, chatId, chatTitle) {
     size: doc.size || doc.expected_size || 0,
     chatId, chatTitle: chatTitle || '',
     messageId: m.id, date: m.date || 0,
-    albumCoverFileId: coverFileId
+    albumCoverFileId: coverFileId,
+    albumCoverMini: coverMini
   }
 }
 

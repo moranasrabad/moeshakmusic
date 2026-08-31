@@ -145,6 +145,9 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px;
 @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
 .np-title { font-size: 22px; font-weight: 700; max-width: 70vw; text-align: center; }
 .np-artist { color: var(--muted); }
+.np-dl { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; }
+.np-dl .busy { animation: pulse 1.2s ease-in-out infinite; }
+.pb-right { gap: 6px; }
 .np-progress { display: flex; gap: 12px; align-items: center; width: min(560px, 80vw); color: var(--muted); font-size: 12px; }
 .np-controls { display: flex; gap: 14px; align-items: center; }
 .np-controls .ic { font-size: 24px; }
