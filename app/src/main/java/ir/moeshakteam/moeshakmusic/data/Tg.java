@@ -695,12 +695,13 @@ public final class Tg implements TdClient.UpdateHandler {
 
     /** اسکن دستی: از چت from به بعد، count تا چت — نتایج به scanResults می‌روند (جدا از کتابخانه) */
     public void scanRange(int from, int count, ScanListener cb) {
-        scanRange(from, count, cb, true);  // ✅ مستقیم به library
+        // نتایج باید در «بخش اسکن» دیده شوند و کاربر با «افزودن به کتابخانه» منتقلشان کند
+        scanRange(from, count, cb, false);
     }
 
     /**
      * اسکن با مقصد قابل انتخاب:
-     * toLibrary=true → کتابخانهٔ دائمی (فقط از «افزودن به کتابخانه» استفاده می‌شود)
+     * toLibrary=true → کتابخانهٔ دائمی
      * toLibrary=false → نتایج اسکن (بخش SCAN)
      */
     public void scanRange(int from, int count, ScanListener cb, boolean toLibrary) {
@@ -736,7 +737,6 @@ public final class Tg implements TdClient.UpdateHandler {
                 }
                 int end = (int) Math.min(all.size(), (long) from + count);
                 cb.onProgress(target.size(), 0);
-                int[] msgs = new int[1];
                 for (int i = from; i < end; i++) {
                     if (scanCancel) {
                         log("⏹ اسکن توسط کاربر لغو شد");
@@ -744,9 +744,17 @@ public final class Tg implements TdClient.UpdateHandler {
                     }
                     TdApi.Chat c = all.get(i);
                     String title = c.title == null || c.title.isEmpty() ? "بدون‌نام" : c.title;
-                    List<Track> found = scanChatHistory(c, msgs);
+                    List<Track> found;
+                    try {
+                        int[] msgs = new int[1];  // شمارندهٔ مستقل برای هر چت
+                        found = scanChatHistory(c, msgs);
+                        log("[" + (i + 1) + "/" + end + "] «" + title + "» → " + msgs[0] + " پیام، " + found.size() + " فایل صوتی");
+                    } catch (Exception e) {
+                        // یک چت خراب نباید کل اسکن را از کار بیندازد
+                        log("⚠️ «" + title + "» اسکن نشد: " + e.getMessage());
+                        found = new ArrayList<>();
+                    }
                     files += found.size();
-                    log("[" + (i + 1) + "/" + end + "] «" + title + "» → " + msgs[0] + " پیام، " + found.size() + " فایل صوتی");
                     for (Track t : found) {
                         boolean isNew = true;
                         for (Track ex : buffer) {
@@ -770,7 +778,9 @@ public final class Tg implements TdClient.UpdateHandler {
                         buffer.clear();
                     }
                     cb.onProgress(target.size(), chats);
-                    if (chats % 8 == 0) Thread.sleep(800);
+                    if (chats % 8 == 0) {
+                        try { Thread.sleep(800); } catch (InterruptedException ignored) { }
+                    }
                 }
                 // ادغام یک‌جای بافر (بدون هزاران کپی COW) — بدون تکرار
                 int added = mergeNew(buffer, target);
@@ -1341,7 +1351,6 @@ public final class Tg implements TdClient.UpdateHandler {
                 List<Track> found = deepHistory(chat, msgs,
                         (fnd, m) -> { for (Tg.ScanListener x : deepListeners) x.onProgress(fnd, m); });
                 int added = mergeNew(found, scanResults);
-                for (Track t : found.subList(Math.max(0, found.size() - added), found.size())) log("🎵 +" + t.title);
                 log("🔎 اسکن عمیق تمام شد: " + msgs[0] + " پیام → " + added + " موزیک جدید (در بخش اسکن)");
                 cb.onDone(added);
             } catch (Exception e) {
@@ -1402,6 +1411,13 @@ public final class Tg implements TdClient.UpdateHandler {
 
     /** اسکن عمیق سیو — کل تاریخچهٔ Saved Messages */
     public void deepScanSaved(ScanListener cb) {
+        if (scanning) {
+            Ui.toast(ctx, ctx.getString(R.string.scan_already));
+            cb.onDone(0);
+            return;
+        }
+        scanning = true;
+        scanCancel = false;
         EXEC.execute(() -> {
             try {
                 TdApi.User me = (TdApi.User) TdClient.sync(new TdApi.GetMe());
@@ -1411,7 +1427,6 @@ public final class Tg implements TdClient.UpdateHandler {
                     cb.onDone(0);
                     return;
                 }
-                scanning = true;
                 log("⭐ اسکن عمیق Saved Messages…");
                 int[] msgs = new int[1];
                 List<Track> found = deepHistory(saved, msgs, null);

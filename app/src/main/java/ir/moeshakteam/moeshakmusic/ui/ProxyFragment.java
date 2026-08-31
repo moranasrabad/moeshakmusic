@@ -105,8 +105,10 @@ public class ProxyFragment extends Fragment {
     }
 
     private void refreshList() {
-        adapter.setItems(Prefs.get(requireContext()).proxies(),
-                Prefs.get(requireContext()).activeProxyIndex());
+        // 💥 ضدکرش: بعد از ping در ترد پس‌زمینه، فرگمنت ممکن است جدا شده باشد
+        if (!isAdded() || adapter == null) return;
+        android.content.Context c = requireContext();
+        adapter.setItems(Prefs.get(c).proxies(), Prefs.get(c).activeProxyIndex());
         empty.setVisibility(adapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
     }
 
