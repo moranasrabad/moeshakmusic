@@ -104,19 +104,21 @@ api.on('log', entry => { const box = $('#logBox'); if (box && S.tab === 'log') a
 
 // ---------------- boot ----------------
 async function boot() {
-  const st = await api.invoke('getState')
-  S.settings = st.settings
-  LANG = st.settings.lang || 'fa'
+  let st = { auth: { state: 'closed' }, settings: { theme: 'dark', accent: 'purple', lang: 'fa' } }
+  try { st = await api.invoke('getState') } catch (e) { /* keep defaults */ }
+  S.settings = st.settings || S.settings
+  LANG = S.settings.lang || 'fa'
   applyTheme()
-  const logs = await api.invoke('log.list')
-  $('#logBox').innerHTML = ''
-  logs.forEach(appendLog)
-  if (st.auth && st.auth.state === 'ready') {
-    S.auth = 'ready'
-    enterApp()
-  } else {
-    renderLogin({ state: S.auth })
-  }
+  try {
+    const logs = await api.invoke('log.list')
+    S.pendingLogs = logs || []
+    const box = $('#logBox')
+    if (box) { box.innerHTML = ''; S.pendingLogs.forEach(appendLog) }
+  } catch (e) {}
+  const authState = (st.auth && st.auth.state) || S.auth || 'closed'
+  S.auth = authState
+  if (authState === 'ready') enterApp()
+  else renderLogin({ state: authState })
 }
 
 function applyTheme() {
@@ -163,6 +165,7 @@ async function enterApp() {
   try { S.me = await api.invoke('getMe') } catch (e) { S.me = null }
   renderNav()
   loadTabs()
+  loadChannels()
 }
 
 function renderNav() {
@@ -178,7 +181,7 @@ function renderNav() {
   const meBox = $('#meBox')
   if (S.me) {
     meBox.classList.remove('hidden')
-    meBox.innerHTML = `<img src="${artUrl(0)}" style="visibility:hidden" alt=""/><span>${esc(S.me.first_name || '')} ${esc(S.me.last_name || '')}</span>`
+    meBox.innerHTML = `<span>${esc(S.me.firstName || '')} ${esc(S.me.lastName || '')}</span>`
   }
 }
 
@@ -524,7 +527,12 @@ function accentHex(c) {
 
 function renderLog() {
   $('#tabBody').innerHTML = `<div class="log-box" id="logBox"></div>`
-  api.invoke('log.list').then(lines => { const box = $('#logBox'); box.innerHTML = ''; lines.forEach(appendLog) })
+  const box = $('#logBox')
+  if (S.pendingLogs && S.pendingLogs.length) {
+    S.pendingLogs.forEach(appendLog)
+  } else {
+    api.invoke('log.list').then(lines => { const b = $('#logBox'); if (b) { b.innerHTML = ''; lines.forEach(appendLog) } })
+  }
 }
 
 function appendLog(entry) {
@@ -775,4 +783,3 @@ async function loadChannels() {
 }
 
 boot()
-loadChannels()

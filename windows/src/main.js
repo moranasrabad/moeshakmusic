@@ -259,6 +259,13 @@ function registerIpc() {
         }
         case 'auth.logout': await ensureTg().logout(); return true
 
+        case 'getMe': {
+          try {
+            const me = await ensureTg().getMe()
+            return { id: me.id, firstName: me.first_name || '', lastName: me.last_name || '', username: me.username || '' }
+          } catch (e) { return null }
+        }
+
         case 'chats.list': return ensureTg().getChats(payload.limit || 200)
         case 'chats.search': return ensureTg().searchChats(payload.query || '')
         case 'chats.get': return ensureTg().getChatInfo(payload.chatId)
@@ -368,7 +375,7 @@ if (!gotLock) {
 
   app.whenReady().then(() => {
     store = new Store(app.getPath('userData'))
-    ensureTg()
+    try { ensureTg() } catch (e) { log('TDLib init failed: ' + (e && e.message)) }
 
     protocol.handle('moeshak-stream', req => handleMedia(req, 'stream'))
     protocol.handle('moeshak-local', req => handleMedia(req, 'local'))
