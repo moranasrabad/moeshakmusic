@@ -688,9 +688,6 @@ public final class Tg implements TdClient.UpdateHandler {
     // از GetChatHistory مستقیم استفاده می‌کنیم — همون چیزی که تلگرام رسمی هم برای
     // نمایش چت استفاده می‌کنه و همیشه جواب می‌ده. سرچ فقط به‌عنوان مکمل.
 
-    // سقف پیام‌های هر چت در اسکن سریع (غیرعمیق) — برای سرعت بالا
-    private static final int SHALLOW_MAX_MSGS = 150;
-
     /** اسکن کامل: همهٔ چت‌ها با تاریخچهٔ مستقیم */
     public void scanLibrary(ScanListener cb) {
         scanRange(0, Integer.MAX_VALUE, cb, false);
@@ -722,10 +719,10 @@ public final class Tg implements TdClient.UpdateHandler {
             int files = 0;
             List<Track> buffer = new ArrayList<>();
             try {
-                // عمیق (همهٔ چت‌ها) = کل تاریخچهٔ هر چت؛ سریع (۵۰/۱۰۰/۳۰۰ چت) = فقط ۱۵۰ پیام آخر هر چت
-                final int maxMsgs = (count >= Integer.MAX_VALUE) ? 0 : SHALLOW_MAX_MSGS;
+                // همهٔ حالت‌های اسکن، کل تاریخچهٔ هر چت را می‌خوانند (کامل — هیچ سقفی روی پیام‌ها نیست)
+                final boolean deep = count >= Integer.MAX_VALUE;
                 log("🚀 اسکن شروع شد → " + (toLibrary ? "کتابخانه" : "بخش اسکن")
-                        + " (" + (maxMsgs > 0 ? "سریع: " + maxMsgs + " پیام/چت" : "عمیق: کل تاریخچهٔ هر چت") + ")");
+                        + " (" + (deep ? "همهٔ چت‌ها" : count + " چت") + " — تاریخچهٔ کامل هر چت)");
                 List<TdApi.Chat> all = loadAllChats();
                 log("📋 " + all.size() + " چت لود شد");
                 // Saved Messages همیشه اول
@@ -756,7 +753,7 @@ public final class Tg implements TdClient.UpdateHandler {
                     try {
                         int[] msgs = new int[1];  // شمارندهٔ مستقل برای هر چت
                         long t0 = System.currentTimeMillis();
-                        found = scanChatHistory(c, msgs, maxMsgs);
+                        found = scanChatHistory(c, msgs, deep);
                         long ms = System.currentTimeMillis() - t0;
                         log("✅ [" + (i + 1) + "/" + end + "] «" + title + "» → " + msgs[0] + " پیام، "
                                 + found.size() + " فایل صوتی (" + ms + "ms)");
@@ -789,9 +786,6 @@ public final class Tg implements TdClient.UpdateHandler {
                         buffer.clear();
                     }
                     cb.onProgress(target.size(), chats);
-                    if (chats % 8 == 0) {
-                        try { Thread.sleep(300); } catch (InterruptedException ignored) { }
-                    }
                 }
                 // ادغام یک‌جای بافر (بدون هزاران کپی COW) — بدون تکرار
                 int added = mergeNew(buffer, target);
@@ -1110,7 +1104,7 @@ public final class Tg implements TdClient.UpdateHandler {
                     // کل چت — دیپ اسکن کامل (هرچقدر دارد)
                     List<Track> found = deepHistory(chat, msgs, (fnd, m) -> {
                         for (ScanListener x : deepListeners) x.onProgress(fnd, m);
-                    }, 0);
+                    });
                     List<Track> newOnes = new ArrayList<>();
                     for (Track t : found) {
                         if (!f.knownIds.contains(t.chatId + ":" + t.messageId)) newOnes.add(t);
@@ -1222,15 +1216,15 @@ public final class Tg implements TdClient.UpdateHandler {
     }
 
     /**
-     * اسکن یک چت — موتور v4: GetChatHistory مستقیم.
-     * maxMsgs > 0 → فقط همین تعداد پیام آخرِ چت (اسکن سریع).
-     * maxMsgs <= 0 → کل تاریخچهٔ چت (اسکن عمیق).
+     * اسکن یک چت — موتور v4: GetChatHistory مستقیم، کل تاریخچهٔ چت بدون سقف.
+     * deep=true → سرچ مکمل هم اجرا می‌شود (حالت «همهٔ چت‌ها»).
      * هیچ reflection/codec ای در مسیر نیست — چیزی که تلگرام می‌فرستد همان است که می‌خوانیم.
      */
-    private List<Track> scanChatHistory(TdApi.Chat chat, int[] msgsOut, int maxMsgs) {
-        List<Track> out = deepHistory(chat, msgsOut, null, maxMsgs);
-        // سرچ مکمل فقط در حالت عمیق (سریع = تاریخچهٔ اخیر کافی است و سرچ روی چت‌های بزرگ خیلی کند می‌شود)
-        if (out.isEmpty() && maxMsgs <= 0) {
+    private List<Track> scanChatHistory(TdApi.Chat chat, int[] msgsOut, boolean deep) {
+        // کل تاریخچهٔ چت — همیشه کامل (هیچ سقفی روی پیام‌ها)
+        List<Track> out = deepHistory(chat, msgsOut, null);
+        // سرچ مکمل فقط در حالت عمیق (روی چت‌های بدون فایل، سرچِ اضافه فقط کند می‌کند)
+        if (out.isEmpty() && deep) {
             // سرچ فقط به‌عنوان مکمل
             String chatTitle = chat.title == null ? "" : chat.title;
             Set<String> seen = new HashSet<>();
@@ -1362,7 +1356,7 @@ public final class Tg implements TdClient.UpdateHandler {
                 log("🔎 اسکن عمیق «" + (chat.title == null ? "بدون‌نام" : chat.title) + "» (کل تاریخچه)…");
                 int[] msgs = new int[1];
                 List<Track> found = deepHistory(chat, msgs,
-                        (fnd, m) -> { for (Tg.ScanListener x : deepListeners) x.onProgress(fnd, m); }, 0);
+                        (fnd, m) -> { for (Tg.ScanListener x : deepListeners) x.onProgress(fnd, m); });
                 int added = mergeNew(found, scanResults);
                 log("🔎 اسکن عمیق تمام شد: " + msgs[0] + " پیام → " + added + " موزیک جدید (در بخش اسکن)");
                 cb.onDone(added);
@@ -1378,18 +1372,16 @@ public final class Tg implements TdClient.UpdateHandler {
     /** تاریخچهٔ عمیق با استخراج raw: کل تاریخچهٔ چت بدون سقف */
     public interface DeepProgress { void onProgress(int found, int msgs); }
 
-    /** اسکن تاریخچهٔ چت — maxMsgs > 0 یعنی فقط همین تعداد پیام آخر؛ <= 0 یعنی کل تاریخچه — تیم موشک */
-    private List<Track> deepHistory(TdApi.Chat chat, int[] msgsOut, DeepProgress progress, int maxMsgs) {
+    /** اسکن تاریخچهٔ چت — کل تاریخچه، هرچقدر که دارد (بدون سقف) — تیم موشک */
+    private List<Track> deepHistory(TdApi.Chat chat, int[] msgsOut, DeepProgress progress) {
         List<Track> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         String chatTitle = chat.title == null ? "" : chat.title;
         if (chat.id == myUserId) chatTitle = "Saved ⭐";
         Integer photoFileId = chatPhotoFileIds.get(chat.id);
         long from = 0L;
-        int emptyRounds = 0;
         while (true) {
             if (scanCancel) break;
-            if (maxMsgs > 0 && msgsOut[0] >= maxMsgs) break;  // سقف پیام در حالت سریع
             org.json.JSONObject h;
             try {
                 h = TdClient.syncRaw(new TdApi.GetChatHistory(chat.id, from, 0, 100, false));
@@ -1398,6 +1390,7 @@ public final class Tg implements TdClient.UpdateHandler {
             }
             org.json.JSONArray arr = h.optJSONArray("messages");
             int n = arr == null ? 0 : arr.length();
+            if (n == 0) break;  // دیگر پیامی نمانده
             msgsOut[0] += n;
             for (RawTrack r : extractAudioRaw(chat.id, h)) {
                 if (seen.add(chat.id + ":" + r.msgId)) {
@@ -1410,14 +1403,8 @@ public final class Tg implements TdClient.UpdateHandler {
             if (msgsOut[0] % 200 == 0) {
                 log("   … «" + chatTitle + "»: " + msgsOut[0] + " پیام، " + out.size() + " فایل");
             }
-            if (n < 100 || arr == null) {
-                emptyRounds++;
-                if (emptyRounds >= 2) break;
-            } else {
-                emptyRounds = 0;
-            }
-            long lastId = arr == null ? 0 : arr.optJSONObject(n - 1).optLong("id");
-            if (lastId == from || lastId == 0) break;
+            long lastId = arr.optJSONObject(n - 1).optLong("id");
+            if (lastId == from || lastId == 0) break;  // سدّ حلقهٔ بی‌نهایت
             from = lastId;
         }
         return out;
@@ -1443,7 +1430,7 @@ public final class Tg implements TdClient.UpdateHandler {
                 }
                 log("⭐ اسکن عمیق Saved Messages…");
                 int[] msgs = new int[1];
-                List<Track> found = deepHistory(saved, msgs, null, 0);
+                List<Track> found = deepHistory(saved, msgs, null);
                 int added = mergeNew(found, scanResults);
                 log("⭐ اسکن سیو تمام شد: " + msgs[0] + " پیام → " + added + " موزیک جدید (در بخش اسکن)");
                 cb.onDone(added);

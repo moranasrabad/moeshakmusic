@@ -135,7 +135,10 @@ public class FollowedFragment extends Fragment {
 
                 av.setText(f.title.isEmpty() ? "?" : f.title.substring(0, 1).toUpperCase());
                 name.setText(f.title);
-                meta.setText(getString(R.string.followed_card_meta, f.knownIds.size()));
+                // تعداد واقعی آهنگ‌های این چت در کتابخانه — دقیقاً همان چیزی که با لمس می‌بینی
+                int libCount = 0;
+                for (Track t : tg.library) if (t.chatId == f.chatId) libCount++;
+                meta.setText(getString(R.string.followed_card_meta, libCount));
 
                 play.setOnClickListener(x -> {
                     List<Track> tracks = libraryTracksOf(f.chatId);

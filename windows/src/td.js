@@ -42,7 +42,7 @@ class Tg {
         use_message_database: true,
         use_secret_chats: false,
         system_language_code: 'fa',
-        application_version: '5.10.6',
+        application_version: '5.10.9',
         device_model: 'Moeshak Music Desktop',
         system_version: os.platform() + ' ' + os.release()
       }
