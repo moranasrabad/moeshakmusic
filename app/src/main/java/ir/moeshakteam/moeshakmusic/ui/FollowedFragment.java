@@ -143,8 +143,14 @@ public class FollowedFragment extends Fragment {
                         Ui.toast(requireContext(), R.string.followed_empty_tracks);
                         return;
                     }
-                    PlayerManager.get(requireContext()).play(tracks, 0);
-                    if (getActivity() instanceof MainActivity) ((MainActivity) getActivity()).openPlayer();
+                    if (getActivity() instanceof MainActivity) {
+                        ChannelTracksFragment ctf = new ChannelTracksFragment();
+                        Bundle b = new Bundle();
+                        b.putLong(ChannelTracksFragment.ARG_CHAT_ID, f.chatId);
+                        b.putString(ChannelTracksFragment.ARG_CHAT_TITLE, f.title);
+                        ctf.setArguments(b);
+                        ((MainActivity) getActivity()).showFullScreen(ctf);
+                    }
                 });
                 // لغو دنبال — فقط با این دکمه + تأیید
                 unf.setOnClickListener(x -> new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())

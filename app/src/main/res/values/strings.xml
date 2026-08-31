@@ -162,6 +162,12 @@
     <string name="tab_all">همه</string>
     <string name="downloads_title">دانلودها</string>
     <string name="downloads_empty">هنوز چیزی دانلود نشده — روی آهنگ لمس طولانی بزن و «دانلود» رو انتخاب کن</string>
+    <string name="downloading_now">در حال دانلود</string>
+    <string name="download_cancel">لغو دانلود</string>
+    <string name="download_cancelled">دانلود لغو شد</string>
+    <string name="channel_tracks_title">آهنگ‌های «%1$s»</string>
+    <string name="channel_tracks_empty">هنوز آهنگی از این چت در کتابخانه نیست — «اسکن عمیق» رو بزن</string>
+    <string name="channel_tracks_count">%1$d آهنگ — برای پخش لمس کن</string>
     <string name="download_channel">دانلود کل کانال</string>
     <string name="channel_all_downloaded">همهٔ موزیک‌های این کانال از قبل دانلود شدن ✓</string>
     <string name="channel_download_started">⬇️ دانلود %1$d موزیک شروع شد — تو لاگ زنده پیشرفتش رو ببین</string>

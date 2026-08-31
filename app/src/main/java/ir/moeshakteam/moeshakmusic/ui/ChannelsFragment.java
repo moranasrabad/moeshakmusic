@@ -23,7 +23,6 @@ import ir.moeshakteam.moeshakmusic.R;
 import ir.moeshakteam.moeshakmusic.data.DownloadStore;
 import ir.moeshakteam.moeshakmusic.data.Tg;
 import ir.moeshakteam.moeshakmusic.data.Track;
-import ir.moeshakteam.moeshakmusic.player.PlayerManager;
 import ir.moeshakteam.moeshakmusic.util.Ui;
 
 /** صفحهٔ کانال‌ها — با آواتار حرف اول، تعداد، افزودن به پلی‌لیست و دانلود گروهی — تیم موشک */
@@ -69,6 +68,18 @@ public class ChannelsFragment extends Fragment {
         empty.setVisibility(entries.isEmpty() ? View.VISIBLE : View.GONE);
     }
 
+    /** باز کردن صفحهٔ لیست آهنگ‌های یک کانال/چت */
+    private void openChannelTracks(String title, List<Track> tracks) {
+        if (tracks == null || tracks.isEmpty() || !(requireActivity() instanceof MainActivity)) return;
+        long chatId = tracks.get(0).chatId;
+        ChannelTracksFragment f = new ChannelTracksFragment();
+        Bundle b = new Bundle();
+        b.putLong(ChannelTracksFragment.ARG_CHAT_ID, chatId);
+        b.putString(ChannelTracksFragment.ARG_CHAT_TITLE, title);
+        f.setArguments(b);
+        ((MainActivity) requireActivity()).showFullScreen(f);
+    }
+
     private class ChannelAdapter extends RecyclerView.Adapter<VH> {
         private List<Map.Entry<String, List<Track>>> items = new ArrayList<>();
 
@@ -95,13 +106,8 @@ public class ChannelsFragment extends Fragment {
             String count = getString(R.string.count_tracks, tracks.size());
             if (downloaded > 0) count += " • " + getString(R.string.count_downloaded, downloaded);
             h.tvCount.setText(count);
-            // لمس → فیلتر کتابخانه بر اساس این کانال
-            h.itemView.setOnClickListener(x -> {
-                // شروع پخش کل کانال + باز شدن پلیر در لایهٔ مستقل
-                PlayerManager.get(requireContext()).play(tracks, 0);
-                if (requireActivity() instanceof MainActivity)
-                    ((MainActivity) requireActivity()).openPlayer();
-            });
+            // لمس → صفحهٔ لیست آهنگ‌های کانال (انتخاب و پخش واقعی، نه bulk-play)
+            h.itemView.setOnClickListener(x -> openChannelTracks(name, tracks));
             h.btnAddToPlaylist.setOnClickListener(x -> {
                 Ui.toast(requireContext(), R.string.add_channel_to_playlist);
                 PlaylistPicker.show(requireActivity(), tracks);
@@ -175,7 +181,7 @@ public class ChannelsFragment extends Fragment {
             }
             Track t = list.get(i);
             Tg.log("⬇️ دانلود کانال [" + (i + 1) + "/" + list.size() + "] " + t.title);
-            Tg.get(requireContext()).download(t.fileId, t.expectedSize, new Tg.DownloadListener() {
+            Tg.get(requireContext()).downloadTrack(t, new Tg.DownloadListener() {
                 @Override
                 public void onProgress(int pct) {
                 }

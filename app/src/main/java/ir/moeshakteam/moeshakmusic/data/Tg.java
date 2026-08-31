@@ -63,10 +63,8 @@ public final class Tg implements TdClient.UpdateHandler {
         }
     }
 
-    /** اسکن عمیق: حداکثر چت و صفحه در هر چت */
+    /** اسکن عمیق: حداکثر تعداد چت؛ هر چت بدون سقف تا انتهای تاریخچه خوانده می‌شود */
     public static final int MAX_CHATS = 1500;
-    public static final int PAGES_PER_CHAT = 6;
-    private static final int PAGE_SIZE = 100;
 
     private static final ExecutorService EXEC = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "TgWorker");
@@ -80,6 +78,54 @@ public final class Tg implements TdClient.UpdateHandler {
     private final Prefs prefs;
     private final List<AuthListener> authListeners = new CopyOnWriteArrayList<>();
     private final Map<Integer, DownloadTask> downloads = new ConcurrentHashMap<>();
+
+    /** دانلودهای فعال — برای نمایش زنده + لغو در بخش دانلودها */
+    public static class ActiveDownload {
+        public final int fileId;
+        public final String title;
+        public final String chatTitle;
+        public final long size;
+        public volatile int pct = -1; // -1 = در صف/شروع
+        public volatile boolean done;
+        public volatile boolean error;
+
+        ActiveDownload(int fileId, String title, String chatTitle, long size) {
+            this.fileId = fileId;
+            this.title = title;
+            this.chatTitle = chatTitle;
+            this.size = size;
+        }
+    }
+
+    private final Map<Integer, ActiveDownload> activeDownloads = new ConcurrentHashMap<>();
+    /** هوک UI — بعد از هر تغییر در دانلودهای فعال صدا زده می‌شود */
+    public volatile Runnable onDownloadsChanged;
+    private final List<Runnable> downloadListeners = new CopyOnWriteArrayList<>();
+
+    public void addDownloadsListener(Runnable r) {
+        if (r != null && !downloadListeners.contains(r)) downloadListeners.add(r);
+    }
+
+    public void removeDownloadsListener(Runnable r) {
+        downloadListeners.remove(r);
+    }
+
+    private void notifyDownloadsChanged() {
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            Runnable r = onDownloadsChanged;
+            if (r != null) {
+                try { r.run(); } catch (Throwable ignored) {}
+            }
+            for (Runnable l : downloadListeners) {
+                try { l.run(); } catch (Throwable ignored) {}
+            }
+        });
+    }
+
+    /** لیست دانلودهای فعال (اسنپ‌شات — امن برای UI) */
+    public List<ActiveDownload> activeDownloads() {
+        return new ArrayList<>(activeDownloads.values());
+    }
 
     public final Map<Long, String> chatTitles = new ConcurrentHashMap<>();
     public final List<Track> library = new CopyOnWriteArrayList<>();
@@ -1155,52 +1201,28 @@ public final class Tg implements TdClient.UpdateHandler {
     }
 
     /**
-     * اسکن یک چت — موتور v3: GetChatHistory مستقیم + استخراج مستقیم JSON.
+     * اسکن یک چت — موتور v4: کل تاریخچهٔ چت بدون هیچ سقفی (GetChatHistory مستقیم).
      * هیچ reflection/codec ای در مسیر نیست — چیزی که تلگرام می‌فرستد همان است که می‌خوانیم.
      */
     private List<Track> scanChatHistory(TdApi.Chat chat, int[] msgsOut) {
-        List<Track> out = new ArrayList<>();
-        Set<String> seen = new HashSet<>();
-        long chatId = chat.id;
-        String chatTitle = chat.title == null ? "" : chat.title;
-        if (chatId == myUserId) chatTitle = "Saved ⭐";
-        long from = 0L;
-        for (int round = 0; round < 6; round++) {
-            org.json.JSONObject h;
-            try {
-                h = TdClient.syncRaw(new TdApi.GetChatHistory(chatId, from, 0, 50, false));
-            } catch (Exception e) {
-                log("   ⚠️ خطای تاریخچه «" + chatTitle + "»: " + e.getMessage());
-                break;
-            }
-            org.json.JSONArray arr = h.optJSONArray("messages");
-            int n = arr == null ? 0 : arr.length();
-            msgsOut[0] += n;
-            Integer photoFileId = chatPhotoFileIds.get(chatId);
-            for (RawTrack r : extractAudioRaw(chatId, h)) {
-                if (seen.add(chatId + ":" + r.msgId)) {
-                    Track tt = toTrack(r, chatTitle);
-                    if (photoFileId != null) tt.chatPhotoFileId = photoFileId;
-                    out.add(tt);
-                }
-            }
-            if (n < 50 || arr == null) break;
-            from = arr.optJSONObject(n - 1).optLong("id");
-        }
+        // کل تاریخچهٔ چت — بدون محدودیت (همان حلقهٔ deepHistory)
+        List<Track> out = deepHistory(chat, msgsOut, null);
         if (out.isEmpty()) {
             // سرچ فقط به‌عنوان مکمل
+            String chatTitle = chat.title == null ? "" : chat.title;
+            Set<String> seen = new HashSet<>();
             for (TdApi.SearchMessagesFilter filter : new TdApi.SearchMessagesFilter[]{
                     new TdApi.SearchMessagesFilterAudio()}) {
                 org.json.JSONObject f;
                 try {
-                    f = TdClient.syncRaw(new TdApi.SearchChatMessages(chatId, null, "", null, 0L, 0, 50, filter));
+                    f = TdClient.syncRaw(new TdApi.SearchChatMessages(chat.id, null, "", null, 0L, 0, 50, filter));
                 } catch (Exception e) {
                     break;
                 }
-                for (RawTrack r : extractAudioRaw(chatId, f)) {
-                    if (seen.add(chatId + ":" + r.msgId)) {
+                for (RawTrack r : extractAudioRaw(chat.id, f)) {
+                    if (seen.add(chat.id + ":" + r.msgId)) {
                         Track tt = toTrack(r, chatTitle);
-                        Integer pf = chatPhotoFileIds.get(chatId);
+                        Integer pf = chatPhotoFileIds.get(chat.id);
                         if (pf != null) tt.chatPhotoFileId = pf;
                         out.add(tt);
                     }
@@ -1286,7 +1308,7 @@ public final class Tg implements TdClient.UpdateHandler {
     /** شناسهٔ کاربر خودم (برای تشخیص Saved Messages) */
     public volatile long myUserId;
 
-    /** اسکن عمیق دستی یک چت — از مرور چت‌ها (تا ۳۰۰۰ پیام) */
+    /** اسکن عمیق دستی یک چت — از مرور چت‌ها (کل تاریخچه، بدون سقف) */
     public void deepScanChat(long chatId, ScanListener cb) {
         if (scanning) {
             Ui.toast(ctx, ctx.getString(R.string.scan_already));
@@ -1302,7 +1324,7 @@ public final class Tg implements TdClient.UpdateHandler {
                     cb.onDone(0);
                     return;
                 }
-                log("🔎 اسکن عمیق «" + (chat.title == null ? "بدون‌نام" : chat.title) + "» (تا ۳۰۰۰ پیام)…");
+                log("🔎 اسکن عمیق «" + (chat.title == null ? "بدون‌نام" : chat.title) + "» (کل تاریخچه)…");
                 int[] msgs = new int[1];
                 List<Track> found = deepHistory(chat, msgs,
                         (fnd, m) -> { for (Tg.ScanListener x : deepListeners) x.onProgress(fnd, m); });
@@ -1319,7 +1341,7 @@ public final class Tg implements TdClient.UpdateHandler {
         });
     }
 
-    /** تاریخچهٔ عمیق با استخراج raw: تا ۳۰۰۰ پیام */
+    /** تاریخچهٔ عمیق با استخراج raw: کل تاریخچهٔ چت بدون سقف */
     public interface DeepProgress { void onProgress(int found, int msgs); }
 
     /** اسکن عمیق — کل تاریخچهٔ چت، هرچقدر که دارد (بدون سقف) — تیم موشک */
@@ -1328,6 +1350,7 @@ public final class Tg implements TdClient.UpdateHandler {
         Set<String> seen = new HashSet<>();
         String chatTitle = chat.title == null ? "" : chat.title;
         if (chat.id == myUserId) chatTitle = "Saved ⭐";
+        Integer photoFileId = chatPhotoFileIds.get(chat.id);
         long from = 0L;
         int emptyRounds = 0;
         while (true) {
@@ -1342,7 +1365,11 @@ public final class Tg implements TdClient.UpdateHandler {
             int n = arr == null ? 0 : arr.length();
             msgsOut[0] += n;
             for (RawTrack r : extractAudioRaw(chat.id, h)) {
-                if (seen.add(chat.id + ":" + r.msgId)) out.add(toTrack(r, chatTitle));
+                if (seen.add(chat.id + ":" + r.msgId)) {
+                    Track tt = toTrack(r, chatTitle);
+                    if (photoFileId != null) tt.chatPhotoFileId = photoFileId;
+                    out.add(tt);
+                }
             }
             if (progress != null) progress.onProgress(out.size(), msgsOut[0]);
             if (msgsOut[0] % 500 == 0) {
@@ -1361,7 +1388,7 @@ public final class Tg implements TdClient.UpdateHandler {
         return out;
     }
 
-    /** اسکن عمیق سیو — ۱۰۰۰ پیام اخیر */
+    /** اسکن عمیق سیو — کل تاریخچهٔ Saved Messages */
     public void deepScanSaved(ScanListener cb) {
         EXEC.execute(() -> {
             try {
@@ -1518,6 +1545,49 @@ public final class Tg implements TdClient.UpdateHandler {
                 }
             }
         });
+    }
+
+    /**
+     * دانلود یک تراک با نمایش زنده در بخش دانلودها — همون download() ولی با
+     * ثبت metadata (عنوان/چت) و به‌روزرسانی UI از طریق onDownloadsChanged.
+     */
+    public void downloadTrack(Track t, DownloadListener cb) {
+        final ActiveDownload ad = new ActiveDownload(t.fileId,
+                t.title == null || t.title.isEmpty() ? "بی‌نام" : t.title,
+                t.chatTitle == null ? "" : t.chatTitle, t.expectedSize);
+        activeDownloads.put(t.fileId, ad);
+        notifyDownloadsChanged();
+        download(t.fileId, t.expectedSize, new DownloadListener() {
+            @Override
+            public void onProgress(int pct) {
+                int before = ad.pct;
+                ad.pct = pct;
+                if (cb != null) cb.onProgress(pct);
+                if (pct != before) notifyDownloadsChanged();
+            }
+
+            @Override
+            public void onDone(String path) {
+                ad.done = true;
+                activeDownloads.remove(t.fileId);
+                notifyDownloadsChanged();
+                if (cb != null) cb.onDone(path);
+            }
+
+            @Override
+            public void onError(String msg) {
+                ad.error = true;
+                activeDownloads.remove(t.fileId);
+                notifyDownloadsChanged();
+                if (cb != null) cb.onError(msg);
+            }
+        });
+    }
+
+    /** لغو دانلود فعال (از بخش دانلودها) — هم دانلود و هم ردیابی‌اش حذف می‌شود */
+    public void cancelDownloadTrack(int fileId) {
+        cancelDownload(fileId);
+        if (activeDownloads.remove(fileId) != null) notifyDownloadsChanged();
     }
 
     public void cancelDownload(int fileId) {

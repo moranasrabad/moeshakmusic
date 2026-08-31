@@ -78,7 +78,7 @@ public class NeonVisualizer extends View {
     /** PlayerManager این را صدا می‌زند */
     public void setPlaying(boolean p) {
         playing = p;
-        if (p) postInvalidateOnAnimation();
+        postInvalidateOnAnimation();
     }
 
     /** موج واقعی میکروفن — اگر باشد */
@@ -136,9 +136,9 @@ public class NeonVisualizer extends View {
                 levels[i] += (target - levels[i]) * Math.min(1f, dt * 14f);
             }
         } else {
-            // آرام به پایین برگرد
+            // آرام به سطح استراحت برگرد (میله‌ها همیشه دیده شوند)
             for (int i = 0; i < BARS; i++) {
-                levels[i] += (0.05f - levels[i]) * Math.min(1f, dt * 6f);
+                levels[i] += (0.12f - levels[i]) * Math.min(1f, dt * 6f);
             }
         }
 
@@ -200,7 +200,8 @@ public class NeonVisualizer extends View {
             post(() -> beatListener.onBeat(beatOut));
         }
 
-        // ۵) ادامهٔ حلقهٔ انیمیشن فقط موقع پخش
-        if (playing && attached) postInvalidateOnAnimation();
+        // ۵) ادامهٔ حلقهٔ انیمیشن تا وقتی ویو به پنجره وصله
+        // (موقع توقف هم استراحت نرم نمایش داده می‌شود تا میله‌ها همیشه دیده شوند)
+        if (attached) postInvalidateOnAnimation();
     }
 }

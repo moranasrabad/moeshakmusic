@@ -221,7 +221,7 @@ public final class PlayerManager {
         // (استریم tdlib:// بعداً وقتی پایدار شد برمی‌گردد)
         t.downloadPct = 0;
         Tg.log("▶️ شروع دانلود برای پخش: " + t.title + " (fileId=" + t.fileId + ")");
-        Tg.get(ctx).download(t.fileId, t.expectedSize, new Tg.DownloadListener() {
+        Tg.get(ctx).downloadTrack(t, new Tg.DownloadListener() {
             @Override
             public void onProgress(int pct) {
                 t.downloadPct = pct;

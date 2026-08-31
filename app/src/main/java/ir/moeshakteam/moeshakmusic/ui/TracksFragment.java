@@ -216,7 +216,7 @@ public class TracksFragment extends Fragment {
 
     private void startDownload(Track t) {
         Ui.toast(requireContext(), "⬇️ " + t.title);
-        Tg.get(requireContext()).download(t.fileId, t.expectedSize, new Tg.DownloadListener() {
+        Tg.get(requireContext()).downloadTrack(t, new Tg.DownloadListener() {
             @Override
             public void onProgress(int pct) {
             }
@@ -273,7 +273,7 @@ public class TracksFragment extends Fragment {
             return;
         }
         Track t = list.get(i);
-        Tg.get(requireContext()).download(t.fileId, t.expectedSize, new Tg.DownloadListener() {
+        Tg.get(requireContext()).downloadTrack(t, new Tg.DownloadListener() {
             @Override
             public void onProgress(int pct) {
             }
