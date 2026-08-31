@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-31:/values-night-v8/values-night-v8.xml",
+            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-32:/values-night-v8/values-night-v8.xml",
             "map": [
                 {
                     "source": "/home/user/.gradle/caches/transforms-3/1cdda9d1421cfb586eddc8d0b5d64f97/transformed/material-1.9.0/res/values-night-v8/values-night-v8.xml",
@@ -21,24 +21,7 @@
                     }
                 },
                 {
-                    "source": "/home/user/MoeshakMusic/app/src/main/res/values-night/colors.xml",
-                    "from": {
-                        "startLines": "9,10,15,3,5,14,13,12,8,11,6,7,16,4",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "435,484,739,140,235,690,639,586,387,534,286,334,785,185",
-                        "endColumns": "48,49,45,44,50,48,50,52,47,51,47,52,49,49",
-                        "endOffsets": "479,529,780,180,281,734,685,634,430,581,329,382,830,230"
-                    },
-                    "to": {
-                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "55,104,154,200,245,296,345,396,449,497,549,597,650,700",
-                        "endColumns": "48,49,45,44,50,48,50,52,47,51,47,52,49,49",
-                        "endOffsets": "99,149,195,240,291,340,391,444,492,544,592,645,695,745"
-                    }
-                },
-                {
-                    "source": "/home/user/MoeshakMusic/app/src/main/res/values-night/themes.xml",
+                    "source": "/home/user/moeshakmusic/app/src/main/res/values-night/themes.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
@@ -54,6 +37,23 @@
                         "endLines": "63",
                         "endColumns": "12",
                         "endOffsets": "5171"
+                    }
+                },
+                {
+                    "source": "/home/user/moeshakmusic/app/src/main/res/values-night/colors.xml",
+                    "from": {
+                        "startLines": "9,10,15,3,5,14,13,12,8,11,6,7,16,4",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "435,484,739,140,235,690,639,586,387,534,286,334,785,185",
+                        "endColumns": "48,49,45,44,50,48,50,52,47,51,47,52,49,49",
+                        "endOffsets": "479,529,780,180,281,734,685,634,430,581,329,382,830,230"
+                    },
+                    "to": {
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,104,154,200,245,296,345,396,449,497,549,597,650,700",
+                        "endColumns": "48,49,45,44,50,48,50,52,47,51,47,52,49,49",
+                        "endOffsets": "99,149,195,240,291,340,391,444,492,544,592,645,695,745"
                     }
                 },
                 {

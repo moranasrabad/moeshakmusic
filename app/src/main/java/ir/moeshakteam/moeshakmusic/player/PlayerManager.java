@@ -3,13 +3,13 @@ package ir.moeshakteam.moeshakmusic.player;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.media.audiofx.Visualizer;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 
 import androidx.core.content.ContextCompat;
 
+import com.chibde.visualizer.CircleBarVisualizer;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.PlaybackException;
@@ -26,7 +26,6 @@ import ir.moeshakteam.moeshakmusic.R;
 import ir.moeshakteam.moeshakmusic.data.Track;
 import ir.moeshakteam.moeshakmusic.data.Tg;
 import ir.moeshakteam.moeshakmusic.util.Ui;
-import ir.moeshakteam.moeshakmusic.viz.NeonVisualizer;
 
 /**
  * مدیریت پخش موزیک با ExoPlayer — استریم مستقیم + کش محلی + ویژوالایزر. تیم موشک
@@ -116,8 +115,7 @@ public final class PlayerManager {
         return index - 1 >= 0 ? index - 1 : (repeatMode == 1 ? queue.size() - 1 : -1);
     }
     private final Handler main = new Handler(Looper.getMainLooper());
-    private Visualizer visualizer;
-    private NeonVisualizer vizView;
+    private CircleBarVisualizer vizView;
     private int vizSessionId;
 
     private final Runnable ticker = new Runnable() {
@@ -135,16 +133,15 @@ public final class PlayerManager {
         @Override
         public void onPlaybackStateChanged(int state) {
             if (state == Player.STATE_ENDED) main.post(PlayerManager.this::next);
-            if (state == Player.STATE_READY) attachVisualizer();
+            if (state == Player.STATE_READY) bindVisualizer();
             notifyState();
         }
 
         @Override
         public void onIsPlayingChanged(boolean isPlaying) {
             notifyState();
-            // ویژوالایزر: با پخش/توقف همگام شود + اتصال session را دوباره امتحان کن
-            if (vizView != null) vizView.setPlaying(isPlaying);
-            if (isPlaying && visualizer == null) main.postDelayed(PlayerManager.this::attachVisualizer, 250);
+            // اتصال session صوتی به ویژوالایزر را دوباره امتحان کن
+            if (isPlaying) main.postDelayed(PlayerManager.this::bindVisualizer, 250);
             if (isPlaying) {
                 main.removeCallbacks(ticker);
                 main.post(ticker);
@@ -184,8 +181,8 @@ public final class PlayerManager {
             player = new ExoPlayer.Builder(ctx, new DefaultMediaSourceFactory(factory)).build();
             player.addListener(exoListener);
             // ویژوالایزر بعد از آماده شدن session صوتی وصل شود
-            main.postDelayed(this::attachVisualizer, 400);
-            main.postDelayed(this::attachVisualizer, 1200);
+            main.postDelayed(this::bindVisualizer, 400);
+            main.postDelayed(this::bindVisualizer, 1200);
         }
         return player;
     }
@@ -367,52 +364,29 @@ public final class PlayerManager {
 
     // ---------- ویژوالایزر ----------
 
-    public void setVisualizerView(NeonVisualizer v) {
+    /** وصل کردن ویوی میله‌ای به session صوتی ExoPlayer */
+    public void setVisualizerSession(CircleBarVisualizer v) {
         vizView = v;
-        if (v != null) {
-            v.setPlaying(isPlaying());
-            attachVisualizer();
-        }
+        bindVisualizer();
     }
 
-    /** اتصال Visualizer واقعی به session صوتی — نیازمند دسترسی RECORD_AUDIO */
-    public void attachVisualizer() {
+    /**
+     * اتصال ویوی میله‌ای به session صوتی ExoPlayer — کتابخانهٔ audiovisualizer
+     * خودش کپچر موج واقعی صدا را انجام می‌دهد و میله‌ها را با آن می‌رقصاند.
+     */
+    public void bindVisualizer() {
         if (player == null || vizView == null) return;
         boolean micGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO)
                 == PackageManager.PERMISSION_GRANTED;
         if (!micGranted) return;
         int sid = player.getAudioSessionId();
         if (sid == 0) return;
-        if (visualizer != null && sid == vizSessionId) return;
-        releaseVisualizer();
+        if (sid == vizSessionId) return;
         try {
-            Visualizer v = new Visualizer(sid);
-            v.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
-            v.setDataCaptureListener(new Visualizer.OnDataCaptureListener() {
-                @Override
-                public void onWaveFormDataCapture(Visualizer vis, byte[] waveform, int samplingRate) {
-                    if (vizView != null) vizView.pushWaveform(waveform);
-                }
-
-                @Override
-                public void onFftDataCapture(Visualizer vis, byte[] fft, int samplingRate) {
-                }
-            }, Visualizer.getMaxCaptureRate() / 2, true, false);
-            v.setEnabled(true);
-            visualizer = v;
+            try { vizView.release(); } catch (Throwable ignored) {}
+            vizView.setPlayer(sid);
             vizSessionId = sid;
         } catch (Throwable ignored) {
-        }
-    }
-
-    private void releaseVisualizer() {
-        if (visualizer != null) {
-            try {
-                visualizer.setEnabled(false);
-                visualizer.release();
-            } catch (Throwable ignored) {
-            }
-            visualizer = null;
         }
     }
 

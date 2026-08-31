@@ -2002,6 +2002,9 @@
     <string name="channel_download_confirm">از کانال «%1$s»، %2$d موزیک دانلود می‌شود. ادامه؟</string>
     <string name="channel_download_done">🎉 دانلود کانال تمام شد!</string>
     <string name="channel_download_started">⬇️ دانلود %1$d موزیک شروع شد — تو لاگ زنده پیشرفتش رو ببین</string>
+    <string name="channel_tracks_count">%1$d آهنگ — برای پخش لمس کن</string>
+    <string name="channel_tracks_empty">هنوز آهنگی از این چت در کتابخانه نیست — «اسکن عمیق» رو بزن</string>
+    <string name="channel_tracks_title">آهنگ‌های «%1$s»</string>
     <string name="character_counter_content_description">Characters entered %1$d of %2$d</string>
     <string name="character_counter_overflowed_content_description">Character limit exceeded %1$d of %2$d</string>
     <string name="character_counter_pattern" translatable="false">%1$d/%2$d</string>
@@ -2033,11 +2036,14 @@
     <string name="deep_scan_started">اسکن عمیق «%1$s»… صبر کن</string>
     <string name="delete_download_confirm">«%1$s» حذف شود؟ فایل هم از حافظه پاک می‌شود</string>
     <string name="download">دانلود</string>
+    <string name="download_cancel">لغو دانلود</string>
+    <string name="download_cancelled">دانلود لغو شد</string>
     <string name="download_channel">دانلود کل کانال</string>
     <string name="download_channel_confirm">از کانال «%1$s»، %2$d موزیک دانلود می‌شود. ادامه؟</string>
     <string name="download_done">آماده پخش ✓</string>
     <string name="downloaded_ok">✓ دانلود شده</string>
     <string name="downloading">در حال دریافت… %1$d%%</string>
+    <string name="downloading_now">در حال دانلود</string>
     <string name="downloads_empty">هنوز چیزی دانلود نشده — روی آهنگ لمس طولانی بزن و «دانلود» رو انتخاب کن</string>
     <string name="downloads_title">دانلودها</string>
     <string name="empty_library">هنوز موزیکی پیدا نشد 🎵\nاز تلگرام برات موزیک بفرست و دوباره رفرش کن!</string>
@@ -2239,8 +2245,10 @@
     <string name="playlist_name_hint">نام پلی‌لیست</string>
     <string name="playlist_name_taken">این اسم از قبل هست</string>
     <string name="playlist_new">پلی‌لیست جدید</string>
+    <string name="playlist_remove_confirm">«%1$s» از پلی‌لیست «%2$s» حذف شود؟</string>
     <string name="playlist_rename">تغییر نام پلی‌لیست</string>
     <string name="playlist_renamed">نام پلی‌لیست عوض شد ✓</string>
+    <string name="playlist_tracks_count">%1$d آهنگ — لمس برای پخش، لمس طولانی برای حذف</string>
     <string name="playlists_empty">هنوز پلی‌لیستی نداری — روی آهنگ لمس طولانی بزن و «افزودن به پلی‌لیست» رو انتخاب کن</string>
     <string name="playlists_title">پلی‌لیست‌ها</string>
     <string name="proxy_active">پروکسی فعال شد — در حال اتصال…</string>
@@ -2314,6 +2322,7 @@
     <string name="scan_ready">آمادهٔ اسکن — عمق را انتخاب کن 🔍</string>
     <string name="scan_running">در حال اسکن چت‌های تلگرام…</string>
     <string name="scan_start">🔍 شروع اسکن</string>
+    <string name="scan_status_bar">اسکن: %1$d چت • %2$d موزیک</string>
     <string name="scan_zero_hint">هیچ فایل صوتی پیدا نشد — اگه آهنگ‌هات ویس/فایلی نیستن، بهم بگو کجان</string>
     <string name="search">جستجو</string>
     <string name="search_hint">جستجوی آهنگ…</string>
@@ -2341,6 +2350,12 @@
     <string name="shuffle_on">شافل: روشن 🔀</string>
     <string description="Title of the side sheet&apos;s accessibility pane that is spoken by TalkBack when the side sheet appears on screen. [CHAR_LIMIT=NONE]" name="side_sheet_accessibility_pane_title">Side Sheet</string>
     <string name="side_sheet_behavior" translatable="false">com.google.android.material.sidesheet.SideSheetBehavior</string>
+    <string name="stats_fav">❤️ %1$d فیوریت</string>
+    <string name="stats_fav_empty">هنوز فیوریتی نداری</string>
+    <string name="stats_follow">🔔 %1$d دنبال‌شده • %2$d موزیک دیده‌شده</string>
+    <string name="stats_follow_empty">هنوز چیزی را دنبال نکرده‌ای</string>
+    <string name="stats_lib">🎵 %1$d موزیک • %2$d چت</string>
+    <string name="stats_lib_empty">کتابخانه خالی است — از تب اسکن شروع کن 🔍</string>
     <string name="status_bar_notification_info_overflow">999+</string>
     <string name="tab_all">همه</string>
     <string name="tab_channels">کانال‌ها</string>

@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-31:/values-af/values-af.xml",
+            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-32:/values-af/values-af.xml",
             "map": [
                 {
                     "source": "/home/user/.gradle/caches/transforms-3/1cdda9d1421cfb586eddc8d0b5d64f97/transformed/material-1.9.0/res/values-af/values-af.xml",

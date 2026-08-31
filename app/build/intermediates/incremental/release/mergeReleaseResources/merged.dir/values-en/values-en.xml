@@ -216,6 +216,7 @@
     <string name="scan_ready">Ready to scan — pick a depth 🔍</string>
     <string name="scan_running">Scanning your Telegram chats…</string>
     <string name="scan_start">🔍 Start scan</string>
+    <string name="scan_status_bar">Scan: %1$d chats • %2$d tracks</string>
     <string name="scan_zero_hint">No audio files found</string>
     <string name="search">Search</string>
     <string name="search_hint">Search songs…</string>
@@ -235,6 +236,12 @@
     <string name="shuffle">Shuffle</string>
     <string name="shuffle_off">Shuffle: OFF</string>
     <string name="shuffle_on">Shuffle: ON 🔀</string>
+    <string name="stats_fav">❤️ %1$d favorites</string>
+    <string name="stats_fav_empty">No favorites yet</string>
+    <string name="stats_follow">🔔 %1$d followed • %2$d tracks seen</string>
+    <string name="stats_follow_empty">Nothing followed yet</string>
+    <string name="stats_lib">🎵 %1$d tracks • %2$d chats</string>
+    <string name="stats_lib_empty">Library is empty — scan from the SCAN tab 🔍</string>
     <string name="tab_all">All</string>
     <string name="tab_channels">CHANNELS</string>
     <string name="tab_chats">CHATS</string>

@@ -108,6 +108,19 @@
       jars="/home/user/.gradle/caches/modules-2/files-2.1/com.google.zxing/core/3.5.1/ae1e1776b7db3bb791a5c5473680bc49f188de41/core-3.5.1.jar"
       resolved="com.google.zxing:core:3.5.1"/>
   <library
+      name="io.github.gautamchibde:audiovisualizer:2.2.5@aar"
+      jars="/home/user/.gradle/caches/transforms-3/822b40a3659c2d881ad5dc0ed89bc82b/transformed/audiovisualizer-2.2.5/jars/classes.jar"
+      resolved="io.github.gautamchibde:audiovisualizer:2.2.5"
+      folder="/home/user/.gradle/caches/transforms-3/822b40a3659c2d881ad5dc0ed89bc82b/transformed/audiovisualizer-2.2.5"
+      manifest="AndroidManifest.xml"
+      resFolder="res"
+      assetsFolder="assets"
+      lintJar="lint.jar"
+      publicResources="public.txt"
+      symbolFile="R.txt"
+      externalAnnotations="annotations.zip"
+      proguardRules="proguard.txt"/>
+  <library
       name="androidx.fragment:fragment:1.3.6@aar"
       jars="/home/user/.gradle/caches/transforms-3/841d9857dab2397c2258e0a47223c5c2/transformed/fragment-1.3.6/jars/classes.jar"
       resolved="androidx.fragment:fragment:1.3.6"

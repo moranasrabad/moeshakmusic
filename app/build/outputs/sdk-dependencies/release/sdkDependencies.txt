@@ -861,6 +861,19 @@ library {
     value: 1
   }
 }
+library {
+  maven_library {
+    groupId: "io.github.gautamchibde"
+    artifactId: "audiovisualizer"
+    version: "2.2.5"
+  }
+  digests {
+    sha256: "\255\245\3057`\203\203;\305*\330R\0203\020*S\035\277\022|\267K\277\357\344v\307\3750\022\241"
+  }
+  repo_index {
+    value: 1
+  }
+}
 library_dependencies {
   library_dep_index: 1
   library_dep_index: 2
@@ -1272,6 +1285,10 @@ library_dependencies {
   library_dep_index: 65
   library_dep_index: 68
 }
+library_dependencies {
+  library_index: 71
+  library_dep_index: 0
+}
 module_dependencies {
   module_name: "base"
   dependency_index: 0
@@ -1283,6 +1300,7 @@ module_dependencies {
   dependency_index: 60
   dependency_index: 61
   dependency_index: 70
+  dependency_index: 71
 }
 repositories {
   maven_repo {

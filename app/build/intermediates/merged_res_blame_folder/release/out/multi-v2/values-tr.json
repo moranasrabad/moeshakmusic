@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-31:/values-tr/values-tr.xml",
+            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-32:/values-tr/values-tr.xml",
             "map": [
                 {
                     "source": "/home/user/.gradle/caches/transforms-3/df8deeec81223bb2153a0d974042d107/transformed/exoplayer-core-2.19.1/res/values-tr/values-tr.xml",

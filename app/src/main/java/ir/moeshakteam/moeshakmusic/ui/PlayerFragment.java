@@ -1,11 +1,13 @@
 package ir.moeshakteam.moeshakmusic.ui;
 
 import android.Manifest;
+import android.animation.ObjectAnimator;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.LinearInterpolator;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -19,18 +21,23 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
+import com.chibde.visualizer.CircleBarVisualizer;
+
 import ir.moeshakteam.moeshakmusic.R;
 import ir.moeshakteam.moeshakmusic.data.Track;
 import ir.moeshakteam.moeshakmusic.player.PlayerManager;
 import ir.moeshakteam.moeshakmusic.util.Ui;
-import ir.moeshakteam.moeshakmusic.viz.NeonVisualizer;
 
-/** صفحهٔ پخش با ویژوالایزر — تیم موشک */
+/**
+ * صفحهٔ پخش (Now Playing) — تیم موشک
+ * ویژوالایزر: میله‌های دایره‌ای واقعی (CircleBarVisualizer) که با موجِ صدای
+ * در حال پخش می‌رقصند + کاور چرخان در مرکز حلقه.
+ */
 public class PlayerFragment extends Fragment implements PlayerManager.Listener {
 
     private static final int REQ_MIC = 7;
 
-    private NeonVisualizer viz;
+    private CircleBarVisualizer viz;
     private ImageView art;
     private TextView tvTitle, tvArtist, tvChat, tvCur, tvDur, dlText;
     private SeekBar seek;
@@ -39,6 +46,10 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
     private ProgressBar dlBar;
     private boolean userSeeking;
     private PlayerManager pm;
+
+    // چرخش کاور وسط حلقهٔ میله‌ها
+    private ObjectAnimator spin;
+    private float spinBase;
 
     @Nullable
     @Override
@@ -63,6 +74,18 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         dlRow = v.findViewById(R.id.dlRow);
         dlBar = v.findViewById(R.id.dlBar);
         dlText = v.findViewById(R.id.dlText);
+
+        // رنگ میله‌ها از اکسنت اپ (با فالبک نئون فیروزه‌ای برند)
+        if (viz != null) {
+            try {
+                android.util.TypedValue tv = new android.util.TypedValue();
+                requireContext().getTheme().resolveAttribute(
+                        com.google.android.material.R.attr.colorPrimary, tv, true);
+                viz.setColor(tv.data);
+            } catch (Throwable ignored) {
+                viz.setColor(0xFF22D3EE);
+            }
+        }
 
         v.findViewById(R.id.btnBack).setOnClickListener(x ->
                 requireActivity().onBackPressed());
@@ -120,17 +143,11 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         Track cur = pm.current();
         if (cur != null) bindTrack(cur);
         if (btnPlay != null) btnPlay.setImageResource(pm.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
-        if (viz != null) viz.setPlaying(pm.isPlaying());
+        syncSpin();
         updateSecondary();
 
-        // ویژوالایزر همیشه وصل است: با دسترسی میکروفن موج واقعی، بدون آن انیمیشن ریتمیک
-        pm.setVisualizerView(viz);
-        // 💥 کاور با ضرب ویژوالایزر بزرگ/کوچک می‌شود
-        viz.setBeatListener(level -> {
-            if (art == null || !isAdded()) return;
-            float sc = 1f + level * 0.06f;
-            art.animate().scaleX(sc).scaleY(sc).setDuration(90).start();
-        });
+        // اتصال session صوتی به میله‌ها (کتابخانه خودش کپچر صدا را انجام می‌دهد)
+        pm.setVisualizerSession(viz);
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
@@ -145,7 +162,23 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_MIC && grantResults.length > 0
                 && grantResults[0] == PackageManager.PERMISSION_GRANTED && viz != null) {
-            pm.setVisualizerView(viz);
+            pm.setVisualizerSession(viz);
+        }
+    }
+
+    /** کاور وسط حلقه: موقع پخش می‌چرخد، موقع توقف می‌ایستد */
+    private void syncSpin() {
+        if (art == null) return;
+        if (pm.isPlaying()) {
+            if (spin != null) spin.cancel();
+            spin = ObjectAnimator.ofFloat(art, "rotation", spinBase, spinBase + 360f);
+            spin.setDuration(24000L);
+            spin.setInterpolator(new LinearInterpolator());
+            spin.addUpdateListener(a -> spinBase = (Float) a.getAnimatedValue());
+            spin.start();
+        } else {
+            if (spin != null) spin.cancel();
+            spinBase = art.getRotation();
         }
     }
 
@@ -247,7 +280,7 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
         if (!isAdded()) return;
         requireActivity().runOnUiThread(() -> {
             btnPlay.setImageResource(playing ? R.drawable.ic_pause : R.drawable.ic_play);
-            if (viz != null) viz.setPlaying(playing);
+            syncSpin();
         });
     }
 
@@ -287,8 +320,11 @@ public class PlayerFragment extends Fragment implements PlayerManager.Listener {
 
     @Override
     public void onDestroyView() {
+        if (spin != null) {
+            try { spin.cancel(); } catch (Throwable ignored) {}
+        }
         pm.detach(this);
-        pm.setVisualizerView(null);
+        pm.setVisualizerSession(null);
         super.onDestroyView();
     }
 }

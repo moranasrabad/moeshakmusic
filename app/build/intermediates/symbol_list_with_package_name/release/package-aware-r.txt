@@ -2919,6 +2919,7 @@ drawable bg_art
 drawable bg_card
 drawable bg_glass
 drawable bg_glow
+drawable bg_glow_img
 drawable bg_mini
 drawable bg_play
 drawable bg_player_glass
@@ -3132,6 +3133,8 @@ id action_settings
 id action_text
 id action_theme
 id actions
+id activeHeader
+id activeList
 id activity_chooser_view_content
 id add
 id alertTitle
@@ -3166,6 +3169,7 @@ id btnAdd
 id btnAddAll
 id btnAddToPlaylist
 id btnBack
+id btnCancel
 id btnCheckNow
 id btnClear
 id btnClearLibrary
@@ -3189,6 +3193,7 @@ id btnOpenLog
 id btnPing
 id btnPingAll
 id btnPlay
+id btnPlayAll
 id btnPlaylist
 id btnPrev
 id btnProxy
@@ -3664,6 +3669,7 @@ id tvAccount
 id tvArtist
 id tvAvatar
 id tvChat
+id tvChatTitle
 id tvCodeHint
 id tvConn
 id tvCount
@@ -3673,6 +3679,7 @@ id tvDuration
 id tvError
 id tvFollowStatus
 id tvIndex
+id tvLibStats
 id tvLog
 id tvMeta
 id tvName
@@ -3843,6 +3850,7 @@ layout design_navigation_menu
 layout design_navigation_menu_item
 layout design_text_input_end_icon
 layout design_text_input_start_icon
+layout fragment_channel_tracks
 layout fragment_channels
 layout fragment_chats
 layout fragment_downloads
@@ -3852,12 +3860,14 @@ layout fragment_log
 layout fragment_login
 layout fragment_onboarding
 layout fragment_player
+layout fragment_playlist_tracks
 layout fragment_playlists
 layout fragment_proxy
 layout fragment_queue
 layout fragment_scan
 layout fragment_settings
 layout fragment_tracks
+layout item_active_download
 layout item_channel
 layout item_chat
 layout item_download
@@ -4015,6 +4025,9 @@ string channel_all_downloaded
 string channel_download_confirm
 string channel_download_done
 string channel_download_started
+string channel_tracks_count
+string channel_tracks_empty
+string channel_tracks_title
 string character_counter_content_description
 string character_counter_overflowed_content_description
 string character_counter_pattern
@@ -4046,11 +4059,14 @@ string deep_scan_none
 string deep_scan_started
 string delete_download_confirm
 string download
+string download_cancel
+string download_cancelled
 string download_channel
 string download_channel_confirm
 string download_done
 string downloaded_ok
 string downloading
+string downloading_now
 string downloads_empty
 string downloads_title
 string empty_library
@@ -4244,8 +4260,10 @@ string playlist_empty_toast
 string playlist_name_hint
 string playlist_name_taken
 string playlist_new
+string playlist_remove_confirm
 string playlist_rename
 string playlist_renamed
+string playlist_tracks_count
 string playlists_empty
 string playlists_title
 string proxy_active
@@ -4316,6 +4334,7 @@ string scan_range_all
 string scan_ready
 string scan_running
 string scan_start
+string scan_status_bar
 string scan_zero_hint
 string search
 string search_hint
@@ -4341,6 +4360,12 @@ string shuffle_off
 string shuffle_on
 string side_sheet_accessibility_pane_title
 string side_sheet_behavior
+string stats_fav
+string stats_fav_empty
+string stats_follow
+string stats_follow_empty
+string stats_lib
+string stats_lib_empty
 string status_bar_notification_info_overflow
 string tab_all
 string tab_channels

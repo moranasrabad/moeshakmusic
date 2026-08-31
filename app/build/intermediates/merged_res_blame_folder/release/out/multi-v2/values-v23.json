@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-31:/values-v23/values-v23.xml",
+            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-32:/values-v23/values-v23.xml",
             "map": [
                 {
                     "source": "/home/user/.gradle/caches/transforms-3/8cd73bce73216a642d64d4c7bc8b9a37/transformed/cardview-1.0.0/res/values-v23/values-v23.xml",

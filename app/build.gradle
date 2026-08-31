@@ -21,8 +21,8 @@ android {
         applicationId "ir.moeshakteam.moeshakmusic"
         minSdk 24
         targetSdk 33
-        versionCode 86
-        versionName "5.10.4"
+        versionCode 87
+        versionName "5.10.5"
         vectorDrawables.useSupportLibrary = true
         buildConfigField "int", "BAKED_API_ID", BAKED_API_ID
         buildConfigField "String", "BAKED_API_HASH", "\"${BAKED_API_HASH}\""
@@ -76,4 +76,5 @@ dependencies {
     implementation 'androidx.media:media:1.6.0'
     implementation 'com.google.android.exoplayer:exoplayer-core:2.19.1'
     implementation 'com.google.zxing:core:3.5.1'
+    implementation 'io.github.gautamchibde:audiovisualizer:2.2.5'
 }

@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-31:/values-el/values-el.xml",
+            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-32:/values-el/values-el.xml",
             "map": [
                 {
                     "source": "/home/user/.gradle/caches/transforms-3/6e1cadeb405580b47ec7e1dc9af54fc3/transformed/core-1.9.0/res/values-el/values-el.xml",

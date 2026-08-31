@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-31:/values-kk/values-kk.xml",
+            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-32:/values-kk/values-kk.xml",
             "map": [
                 {
                     "source": "/home/user/.gradle/caches/transforms-3/26704777f4d1a769b7352b833b29ea1f/transformed/appcompat-1.6.1/res/values-kk/values-kk.xml",

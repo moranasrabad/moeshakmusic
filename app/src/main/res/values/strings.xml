@@ -245,6 +245,8 @@
     <string name="playlist_renamed">نام پلی‌لیست عوض شد ✓</string>
     <string name="playlist_name_taken">این اسم از قبل هست</string>
     <string name="playlist_empty_toast">این پلی‌لیست خالیه</string>
+    <string name="playlist_tracks_count">%1$d آهنگ — لمس برای پخش، لمس طولانی برای حذف</string>
+    <string name="playlist_remove_confirm">«%1$s» از پلی‌لیست «%2$s» حذف شود؟</string>
     <string name="save_btn">ذخیره</string>
 
     <string name="tab_chats">چت‌ها</string>

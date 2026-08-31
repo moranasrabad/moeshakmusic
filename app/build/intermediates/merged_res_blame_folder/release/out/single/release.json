@@ -1,294 +1,310 @@
 [
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_player.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_player.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/mipmap-xxxhdpi/ic_launcher.png"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_log.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_log.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_chip_bg.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/chip_bg.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_bell_on.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_bell_on.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/mipmap-xxhdpi/ic_launcher.png"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_item_playlist.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/item_playlist.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_scan.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_scan.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_edit.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_edit.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_rocket.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_rocket.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_pause.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_pause.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_heart_filled.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_heart_filled.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_shuffle.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_shuffle.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_logout.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_logout.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_bg_player_glass.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/bg_player_glass.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/mipmap-xhdpi/ic_launcher.png"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_playlists.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_playlists.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_bell.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_bell.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_back.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_back.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_bg_glow_img.png.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/bg_glow_img.png"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_bg_play.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/bg_play.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/mipmap-hdpi/ic_launcher.png"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/menu_menu_library.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/menu/menu_library.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_downloads.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_downloads.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_item_followed.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/item_followed.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_download_done.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_download_done.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_proxy.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_proxy.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_bg_glow.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/bg_glow.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_refresh.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_refresh.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_pause.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_pause.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_bg_card.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/bg_card.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_repeat_one.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_repeat_one.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_item_chat.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/item_chat.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_tracks.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_tracks.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_download_done.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_download_done.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_playlist_add.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_playlist_add.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_onboarding.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_onboarding.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_shuffle.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_shuffle.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_theme.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_theme.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_item_channel.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/item_channel.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_item_proxy.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/item_proxy.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_bg_mini.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/bg_mini.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_repeat.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_repeat.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_back.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_back.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable-nodpi_logo_moeshak.png.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable-nodpi/logo_moeshak.png"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_bg_glass.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/bg_glass.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_prev.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_prev.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_bg_play.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/bg_play.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_bg_art.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/bg_art.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_search.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_search.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/mipmap-hdpi_ic_launcher_round.png.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/mipmap-hdpi/ic_launcher_round.png"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/menu_menu_library.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/menu/menu_library.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_repeat_one.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_repeat_one.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_library.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_library.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_queue.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_queue.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_music.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_music.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_chip_bg.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/chip_bg.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_close.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_close.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_item_channel.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/item_channel.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable-nodpi_logo_moeshak.png.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable-nodpi/logo_moeshak.png"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/mipmap-hdpi_ic_launcher.png.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/mipmap-hdpi/ic_launcher.png"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_queue.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_queue.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_item_download.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/item_download.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_item_playlist.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/item_playlist.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_heart_filled.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_heart_filled.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_menu.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_menu.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_play.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_play.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_followed.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_followed.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_scan.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_scan.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_shield.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_shield.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_touch.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_touch.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_login.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_login.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/mipmap-xhdpi_ic_launcher.png.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/mipmap-xhdpi/ic_launcher.png"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_chats.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_chats.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/mipmap-xxxhdpi_ic_launcher.png.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/mipmap-xxxhdpi/ic_launcher.png"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_next.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_next.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_search.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_search.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_download.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_download.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_menu.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_menu.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/mipmap-hdpi/ic_launcher_round.png"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_login.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_login.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_channels.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_channels.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_shield.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_shield.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_item_queue.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/item_queue.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_playlist_add.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_playlist_add.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/mipmap-xxhdpi/ic_launcher_round.png"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_library.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_library.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_heart.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_heart.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/mipmap-xxhdpi_ic_launcher_round.png.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/mipmap-xxhdpi/ic_launcher_round.png"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_refresh.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_refresh.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/mipmap-xxhdpi_ic_launcher.png.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/mipmap-xxhdpi/ic_launcher.png"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_item_track.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/item_track.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_logout.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_logout.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_item_active_download.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/item_active_download.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/mipmap-xxxhdpi/ic_launcher_round.png"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_item_followed.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/item_followed.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_bg_search.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/bg_search.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_playlist_tracks.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_playlist_tracks.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_bg_mini.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/bg_mini.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_play.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_play.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_close.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_close.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_bg_player_glass.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/bg_player_glass.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_bell.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_bell.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_settings.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_settings.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_activity_main.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/activity_main.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_bg_card.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/bg_card.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_downloads.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_downloads.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/mipmap-mdpi/ic_launcher.png"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_queue.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_queue.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_bell_on.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_bell_on.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_bg_glow.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/bg_glow.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_playlists.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_playlists.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_download.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_download.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_edit.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_edit.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_settings.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_settings.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_channel_tracks.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_channel_tracks.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_rocket.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_rocket.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_settings.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_settings.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_item_queue.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/item_queue.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_proxy.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_proxy.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_next.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_next.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_queue.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_queue.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_item_track.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/item_track.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_activity_main.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/activity_main.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_channels.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_channels.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_item_proxy.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/item_proxy.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/mipmap-mdpi_ic_launcher.png.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/mipmap-mdpi/ic_launcher.png"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_theme.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_theme.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_heart.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_heart.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_item_download.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/item_download.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_settings.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_settings.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_item_chat.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/item_chat.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_followed.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_followed.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_repeat.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_repeat.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/mipmap-mdpi_ic_launcher_round.png.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/mipmap-mdpi/ic_launcher_round.png"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/mipmap-mdpi/ic_launcher_round.png"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_tracks.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_tracks.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_touch.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_touch.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_bg_glass.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/bg_glass.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_log.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_log.xml"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/layout_fragment_chats.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/layout/fragment_chats.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/mipmap-xxxhdpi/ic_launcher_round.png"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/drawable_ic_music.xml.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/drawable/ic_music.xml"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/mipmap-xhdpi/ic_launcher_round.png"
     },
     {
-        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-33:/mipmap-xhdpi_ic_launcher_round.png.flat",
-        "source": "ir.moeshakteam.moeshakmusic.app-main-34:/mipmap-xhdpi/ic_launcher_round.png"
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_onboarding.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_onboarding.xml"
+    },
+    {
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_bg_art.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/bg_art.xml"
+    },
+    {
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_bg_search.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/bg_search.xml"
+    },
+    {
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/layout_fragment_player.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/layout/fragment_player.xml"
+    },
+    {
+        "merged": "ir.moeshakteam.moeshakmusic.app-merged_res-34:/drawable_ic_prev.xml.flat",
+        "source": "ir.moeshakteam.moeshakmusic.app-main-35:/drawable/ic_prev.xml"
     }
 ]

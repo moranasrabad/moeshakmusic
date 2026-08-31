@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-31:/values-h320dp-port-v13/values-h320dp-port-v13.xml",
+            "outputFile": "ir.moeshakteam.moeshakmusic.app-mergeReleaseResources-32:/values-h320dp-port-v13/values-h320dp-port-v13.xml",
             "map": [
                 {
                     "source": "/home/user/.gradle/caches/transforms-3/1cdda9d1421cfb586eddc8d0b5d64f97/transformed/material-1.9.0/res/values-h320dp-port-v13/values-h320dp-port-v13.xml",
