@@ -35,8 +35,71 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.VH> {
     private Track now;
     private String query = "";
 
+    // ---------- انتخاب گروهی — تیم موشک ----------
+    public interface SelectionListener {
+        void onChanged(int count);
+    }
+
+    private boolean selectionMode;
+    private final java.util.Set<String> selected = new java.util.HashSet<>();
+    private SelectionListener selectionListener;
+
+    public void setSelectionListener(SelectionListener l) {
+        selectionListener = l;
+    }
+
+    public boolean isSelectionMode() {
+        return selectionMode;
+    }
+
+    public void setSelectionMode(boolean on) {
+        selectionMode = on;
+        selected.clear();
+        if (selectionListener != null) selectionListener.onChanged(0);
+        notifyDataSetChanged();
+    }
+
+    public void toggle(Track t) {
+        String k = t.chatId + ":" + t.messageId;
+        if (!selected.remove(k)) selected.add(k);
+        if (selectionListener != null) selectionListener.onChanged(selected.size());
+        notifyDataSetChanged();
+    }
+
+    public void selectAll() {
+        selected.clear();
+        for (Track t : shown) selected.add(t.chatId + ":" + t.messageId);
+        if (selectionListener != null) selectionListener.onChanged(selected.size());
+        notifyDataSetChanged();
+    }
+
+    public void clearSelection() {
+        selected.clear();
+        if (selectionListener != null) selectionListener.onChanged(0);
+        notifyDataSetChanged();
+    }
+
+    public List<Track> getSelectedTracks() {
+        List<Track> out = new ArrayList<>();
+        for (Track t : shown) {
+            if (selected.contains(t.chatId + ":" + t.messageId)) out.add(t);
+        }
+        return out;
+    }
+
+    public int getSelectedCount() {
+        return selected.size();
+    }
+
     public TrackAdapter(OnClick click) {
         this.click = click;
+        setHasStableIds(true); // 🔧 RecyclerView بهینه برای لیست‌های بزرگ
+    }
+
+    @Override
+    public long getItemId(int position) {
+        Track t = shown.get(position);
+        return (t.chatId * 31 + t.messageId);
     }
 
     public void setLongClick(OnLongClick lc) {
@@ -107,11 +170,32 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.VH> {
         h.tvTitle.setText(t.title);
         h.tvSubtitle.setText(t.subtitle());
         h.tvDuration.setText(Ui.fmtDuration(t.duration));
-        Bitmap b = t.art();
-        if (b != null) h.art.setImageBitmap(b);
-        else h.art.setImageResource(R.drawable.bg_art);
+        // تامبنیل: مینی‌تامب ← کاور آلبوم ← عکس کانال ← گرادیان برند
+        ir.moeshakteam.moeshakmusic.data.ArtLoader.load(t, h.art);
         boolean isNow = t.sameAs(now);
         h.ivNow.setVisibility(isNow ? View.VISIBLE : View.GONE);
+        // حالت انتخاب گروهی — شماره ← تیک
+        if (selectionMode) {
+            String k = t.chatId + ":" + t.messageId;
+            h.tvIndex.setText(selected.contains(k) ? "✓" : "○");
+            h.tvIndex.setTextColor(selected.contains(k)
+                    ? 0xFF22D3EE : h.itemView.getContext().getColor(R.color.moeshak_muted));
+            h.tvIndex.setTextSize(18);
+        } else {
+            h.tvIndex.setTextSize(15);
+        }
+        h.itemView.setAlpha(selectionMode && selected.contains(t.chatId + ":" + t.messageId) ? 1f : (selectionMode ? 0.75f : 1f));
+        if (isNow) {
+            android.util.TypedValue tv = new android.util.TypedValue();
+            h.tvTitle.getContext().getTheme().resolveAttribute(
+                    com.google.android.material.R.attr.colorPrimary, tv, true);
+            h.tvTitle.setTextColor(tv.data);
+        } else {
+            android.util.TypedValue tv = new android.util.TypedValue();
+            h.tvTitle.getContext().getTheme().resolveAttribute(
+                    com.google.android.material.R.attr.colorOnSurface, tv, true);
+            h.tvTitle.setTextColor(tv.data);
+        }
         boolean downloaded = ir.moeshakteam.moeshakmusic.data.DownloadStore
                 .get(h.itemView.getContext()).isDownloaded(t);
         // شماره ترتیب یا تیک دانلود
@@ -122,12 +206,21 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.VH> {
         h.tvDuration.setCompoundDrawablePadding(6);
         h.itemView.setOnClickListener(x -> {
             int p = h.getBindingAdapterPosition();
-            if (p >= 0 && p < shown.size()) click.on(shown.get(p), p);
+            if (p < 0 || p >= shown.size()) return;
+            if (selectionMode) {
+                toggle(shown.get(p));
+            } else {
+                click.on(shown.get(p), p);
+            }
         });
         h.itemView.setOnLongClickListener(x -> {
             int p = h.getBindingAdapterPosition();
             if (p < 0 || p >= shown.size()) return true;
-            longClick.on(shown.get(p), p);
+            if (selectionMode) {
+                toggle(shown.get(p));
+            } else {
+                longClick.on(shown.get(p), p);
+            }
             return true;
         });
     }

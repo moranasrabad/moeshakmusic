@@ -47,8 +47,6 @@ public class ChannelsFragment extends Fragment {
         adapter = new ChannelAdapter();
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         recycler.setAdapter(adapter);
-        v.findViewById(R.id.btnBack).setOnClickListener(x ->
-                requireActivity().onBackPressed());
         refresh();
     }
 
@@ -94,8 +92,8 @@ public class ChannelsFragment extends Fragment {
             for (Track t : tracks) if (DownloadStore.get(requireContext()).isDownloaded(t)) downloaded++;
             h.tvAvatar.setText(name.substring(0, 1).toUpperCase());
             h.tvName.setText(name);
-            String count = tracks.size() + " موزیک";
-            if (downloaded > 0) count += " • " + downloaded + " دانلودشده";
+            String count = getString(R.string.count_tracks, tracks.size());
+            if (downloaded > 0) count += " • " + getString(R.string.count_downloaded, downloaded);
             h.tvCount.setText(count);
             // لمس → فیلتر کتابخانه بر اساس این کانال
             h.itemView.setOnClickListener(x -> {
@@ -105,9 +103,55 @@ public class ChannelsFragment extends Fragment {
                     ((MainActivity) requireActivity()).openPlayer();
             });
             h.btnAddToPlaylist.setOnClickListener(x -> {
-                Ui.toast(requireContext(), "افزودن " + tracks.size() + " موزیک به پلی‌لیست…");
+                Ui.toast(requireContext(), R.string.add_channel_to_playlist);
                 PlaylistPicker.show(requireActivity(), tracks);
             });
+            // 🔔 دنبال کردن — پایش + دیپ‌اسکن کامل خودکار
+            h.btnFollow.setOnClickListener(x -> {
+                ir.moeshakteam.moeshakmusic.data.FollowStore fs =
+                        ir.moeshakteam.moeshakmusic.data.FollowStore.get(requireContext());
+                long cid = tracks.isEmpty() ? 0 : tracks.get(0).chatId;
+                if (fs.isFollowed(cid)) {
+                    fs.unfollow(cid);
+                    Ui.toast(requireContext(), R.string.followed_unfollowed);
+                } else {
+                    Tg.get(requireContext()).followAndDeepScan(cid, name);
+                    Ui.toast(requireContext(), R.string.followed_deep_started);
+                }
+                refresh();
+            });
+            // 🔍 اسکن عمیق کل کانال
+            h.btnDeepScan.setOnClickListener(x -> {
+                if (tracks.isEmpty()) return;
+                Ui.toast(requireContext(), getString(R.string.deep_scan_started, name));
+                Tg.get(requireContext()).deepScanChat(tracks.get(0).chatId, new Tg.ScanListener() {
+                    @Override
+                    public void onProgress(int found, int chats) {
+                    }
+
+                    @Override
+                    public void onDone(int added) {
+                        if (!isAdded()) return;
+                        requireActivity().runOnUiThread(() -> {
+                            Ui.toast(requireContext(), added > 0
+                                    ? getString(R.string.deep_scan_done, added)
+                                    : getString(R.string.deep_scan_none));
+                            refresh();
+                        });
+                    }
+
+                    @Override
+                    public void onError(String msg) {
+                        if (!isAdded()) return;
+                        requireActivity().runOnUiThread(() -> Ui.toast(requireContext(), msg));
+                    }
+                });
+            });
+            h.btnDeepScan.setVisibility(tracks.isEmpty() ? View.GONE : View.VISIBLE);
+            h.btnFollow.setImageResource(
+                    ir.moeshakteam.moeshakmusic.data.FollowStore.get(requireContext())
+                            .isFollowed(tracks.isEmpty() ? 0 : tracks.get(0).chatId)
+                            ? R.drawable.ic_bell_on : R.drawable.ic_bell);
             h.btnDownloadAll.setOnClickListener(x -> {
                 List<Track> toDl = new ArrayList<>();
                 for (Track t : tracks) if (!DownloadStore.get(requireContext()).isDownloaded(t)) toDl.add(t);
@@ -158,7 +202,7 @@ public class ChannelsFragment extends Fragment {
 
     static class VH extends RecyclerView.ViewHolder {
         final TextView tvAvatar, tvName, tvCount;
-        final ImageButton btnAddToPlaylist, btnDownloadAll;
+        final ImageButton btnAddToPlaylist, btnDownloadAll, btnFollow, btnDeepScan;
 
         VH(@NonNull View v) {
             super(v);
@@ -167,6 +211,8 @@ public class ChannelsFragment extends Fragment {
             tvCount = v.findViewById(R.id.tvCount);
             btnAddToPlaylist = v.findViewById(R.id.btnAddToPlaylist);
             btnDownloadAll = v.findViewById(R.id.btnDownloadAll);
+            btnFollow = v.findViewById(R.id.btnFollow);
+            btnDeepScan = v.findViewById(R.id.btnDeepScan);
         }
     }
 }
