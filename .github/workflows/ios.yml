@@ -5,7 +5,7 @@ on:
     inputs:
       tag:
         description: 'Release tag to attach IPA to'
-        default: 'v6.0.3'
+        default: 'v6.0.4'
   push:
     branches: [main]
     paths:
@@ -55,18 +55,18 @@ jobs:
       - name: Package unsigned IPA
         if: steps.verify.outputs.status == 'ok'
         run: |
-          rm -rf Payload MoeshakMusic-v6.0.3-unsigned.ipa
+          rm -rf Payload MoeshakMusic-v6.0.4-unsigned.ipa
           mkdir -p Payload
           cp -R MoeshakMusic-iOS/build/Build/Products/Release-iphoneos/MoeshakMusic.app Payload/
-          zip -qry MoeshakMusic-v6.0.3-unsigned.ipa Payload
-          ls -la MoeshakMusic-v6.0.3-unsigned.ipa
+          zip -qry MoeshakMusic-v6.0.4-unsigned.ipa Payload
+          ls -la MoeshakMusic-v6.0.4-unsigned.ipa
 
       - name: Upload artifact
         if: steps.verify.outputs.status == 'ok'
         uses: actions/upload-artifact@v4
         with:
           name: moeshak-ios
-          path: MoeshakMusic-v6.0.3-unsigned.ipa
+          path: MoeshakMusic-v6.0.4-unsigned.ipa
 
       - name: Attach to GitHub release
         if: steps.verify.outputs.status == 'ok'
@@ -74,5 +74,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${{ github.event.inputs.tag }}"
-          if [ -z "$tag" ]; then tag="v6.0.3"; fi
-          gh release upload "$tag" MoeshakMusic-v6.0.3-unsigned.ipa --clobber
+          if [ -z "$tag" ]; then tag="v6.0.4"; fi
+          gh release upload "$tag" MoeshakMusic-v6.0.4-unsigned.ipa --clobber

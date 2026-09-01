@@ -65,6 +65,8 @@ public final class Tg implements TdClient.UpdateHandler {
 
     /** اسکن عمیق: حداکثر تعداد چت؛ هر چت بدون سقف تا انتهای تاریخچه خوانده می‌شود */
     public static final int MAX_CHATS = 1500;
+    /** ✅ v6.0.4: اسکن سریع پیش‌فرض فقط این تعداد پیامِ اخیرِ هر چت را می‌خواند */
+    private static final int FAST_SCAN_MSGS = 300;
 
     private static final ExecutorService EXEC = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "TgWorker");
@@ -1281,8 +1283,10 @@ public final class Tg implements TdClient.UpdateHandler {
      * هیچ reflection/codec ای در مسیر نیست — چیزی که تلگرام می‌فرستد همان است که می‌خوانیم.
      */
     private List<Track> scanChatHistory(TdApi.Chat chat, int[] msgsOut, boolean deep) {
-        // کل تاریخچهٔ چت — همیشه کامل (هیچ سقفی روی پیام‌ها)
-        List<Track> out = deepHistory(chat, msgsOut, null);
+        // ✅ v6.0.4: اسکن سریع پیش‌فرض فقط ~۳۰۰ پیام اخیر هر چت را می‌خواند (سریع).
+        // دیپ‌اسکن کامل (کل تاریخچه) فقط برای چت‌های فالوشده یا انتخاب دستی کاربر.
+        int maxMsgs = deep ? Integer.MAX_VALUE : FAST_SCAN_MSGS;
+        List<Track> out = deepHistory(chat, msgsOut, null, maxMsgs);
         // سرچ مکمل فقط در حالت عمیق (روی چت‌های بدون فایل، سرچِ اضافه فقط کند می‌کند)
         if (out.isEmpty() && deep) {
             // سرچ فقط به‌عنوان مکمل
@@ -1434,6 +1438,15 @@ public final class Tg implements TdClient.UpdateHandler {
 
     /** اسکن تاریخچهٔ چت — کل تاریخچه، هرچقدر که دارد (بدون سقف) — تیم موشک */
     private List<Track> deepHistory(TdApi.Chat chat, int[] msgsOut, DeepProgress progress) {
+        return deepHistory(chat, msgsOut, progress, Integer.MAX_VALUE);
+    }
+
+    /**
+     * ✅ v6.0.4: maxMsgs سقف پیام‌های خوانده‌شده از این چت است.
+     * اسکن سریع (پیش‌فرض همهٔ چت‌ها) مثلاً ۳۰۰ پیام اخیر هر چت را می‌خواند — سریع.
+     * دیپ‌اسکن (فالو/دستی) با Integer.MAX_VALUE کل تاریخچه را می‌خواند.
+     */
+    private List<Track> deepHistory(TdApi.Chat chat, int[] msgsOut, DeepProgress progress, int maxMsgs) {
         List<Track> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         String chatTitle = chat.title == null ? "" : chat.title;
@@ -1442,9 +1455,11 @@ public final class Tg implements TdClient.UpdateHandler {
         long from = 0L;
         while (true) {
             if (scanCancel) break;
+            if (msgsOut[0] >= maxMsgs) break; // سقف پیام برای اسکن سریع
             org.json.JSONObject h;
             try {
-                h = TdClient.syncRaw(new TdApi.GetChatHistory(chat.id, from, 0, 100, false));
+                int pageLimit = Math.min(100, Math.max(1, maxMsgs - msgsOut[0]));
+                h = TdClient.syncRaw(new TdApi.GetChatHistory(chat.id, from, 0, pageLimit, false));
             } catch (Exception e) {
                 break;
             }

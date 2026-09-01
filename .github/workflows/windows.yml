@@ -5,7 +5,7 @@ on:
     inputs:
       tag:
         description: 'Release tag to attach installers to'
-        default: 'v6.0.3'
+        default: 'v6.0.4'
   push:
     branches: [main]
     paths:
@@ -47,5 +47,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = "${{ github.event.inputs.tag }}"
-          if ([string]::IsNullOrEmpty($tag)) { $tag = "v6.0.3" }
+          if ([string]::IsNullOrEmpty($tag)) { $tag = "v6.0.4" }
           gh release upload $tag windows/dist/*.exe --clobber

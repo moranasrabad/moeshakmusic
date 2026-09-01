@@ -6,7 +6,7 @@ const { getTdjson } = require('prebuilt-tdlib')
 tdl.configure({ tdjson: getTdjson(), verbosityLevel: 1 })
 
 const CHUNK = 512 * 1024 // readFilePart limit
-const APP_VERSION = '6.0.3'
+const APP_VERSION = '6.0.4'
 
 // Map TDLib authorization_state names to friendly UI keys.
 const AUTH_MAP = {

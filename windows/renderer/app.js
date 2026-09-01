@@ -1102,6 +1102,7 @@ function setMeta(track) {
   }
   updateNowPlaying()
   renderNowDl()
+  updateNpActionStates()
   vizReset()
 }
 
@@ -1167,9 +1168,25 @@ function updateNowPlaying() {
   document.querySelectorAll('.track-row').forEach(r => r.classList.remove('playing'))
 }
 
-// wire player controls
-$('#pbPlay').onclick = () => { if (audio.paused) audio.play().catch(() => {}); else audio.pause() }
-$('#npPlay').onclick = $('#pbPlay').onclick
+// wire player controls — یک تابع مشترک برای هر دو نوار و حالت فول‌اسکرین
+function togglePlay() {
+  if (audio.paused || audio.ended) {
+    if (!audio.src && S.current) setMeta(S.current)
+    audio.play().catch(e => {
+      // اگر استریم مستقیم خطا داد، فالبک لوکال
+      if (S.current) {
+        const tr = S.current
+        audio.src = `moeshak-local://${tr.fileId}?size=${tr.size || 0}&mime=${encodeURIComponent(tr.mimeType || 'audio/mpeg')}`
+        api.invoke('file.download', { fileId: tr.fileId }).catch(() => {})
+        audio.play().catch(() => {})
+      }
+    })
+  } else {
+    audio.pause()
+  }
+}
+$('#pbPlay').onclick = togglePlay
+$('#npPlay').onclick = togglePlay
 $('#pbNext').onclick = next; $('#npNext').onclick = next
 $('#pbPrev').onclick = prev; $('#npPrev').onclick = prev
 $('#pbShuffle').onclick = () => { S.shuffle = !S.shuffle; updateNowPlaying() }
@@ -1183,6 +1200,24 @@ $('#pbExpand').onclick = () => $('#np').classList.remove('hidden')
 $('#npClose').onclick = () => $('#np').classList.add('hidden')
 $('#npDl').onclick = downloadCurrent
 $('#pbDl').onclick = downloadCurrent
+// ✅ فیوریت در now-playing
+$('#npFav').onclick = () => {
+  if (!S.current) return
+  api.invoke('fav.toggle', { track: S.current }).then(favs => {
+    S.favorites = favs || S.favorites
+    updateNpActionStates()
+    toast(S.favorites.some(f => trackKey(f) === trackKey(S.current)) ? '❤️' : '🤍')
+  })
+}
+// ✅ افزودن به پلی‌لیست در now-playing
+$('#npPl').onclick = () => { if (S.current) openAddToPlaylist(S.current) }
+
+function updateNpActionStates() {
+  if (!S.current) return
+  const fav = S.favorites.some(f => trackKey(f) === trackKey(S.current))
+  setIcon($('#npFav'), fav ? 'i-heart-fill' : 'i-heart')
+  const favBtn = $('#npFav'); if (favBtn) favBtn.classList.toggle('active', fav)
+}
 
 // media keys
 if ('mediaSession' in navigator) {

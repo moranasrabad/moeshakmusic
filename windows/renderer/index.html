@@ -18,6 +18,9 @@
     <symbol id="i-dl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></symbol>
     <symbol id="i-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></symbol>
+    <symbol id="i-heart-fill" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" fill="currentColor"/></symbol>
+    <symbol id="i-add" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
   </svg>
   <!-- LOGIN -->
   <div id="login" class="screen hidden">
@@ -124,10 +127,12 @@
     <div id="npCover" class="np-cover"></div>
     <div id="npTitle" class="np-title">—</div>
     <div id="npArtist" class="np-artist"></div>
-    <div class="np-dl">
-      <button id="npDl" class="btn ghost small" style="display:flex;align-items:center;gap:6px"><svg width="16" height="16"><use href="#i-dl"/></svg><span id="npDlText"></span></button>
-      <span id="npDlStatus"></span>
+    <div class="np-actions">
+      <button id="npFav" class="ic np-action" title="Favorite"><svg width="26" height="26"><use href="#i-heart"/></svg></button>
+      <button id="npPl" class="ic np-action" title="Add to playlist"><svg width="26" height="26"><use href="#i-add"/></svg></button>
+      <button id="npDl" class="ic np-action" title="Download"><svg width="26" height="26"><use href="#i-dl"/></svg></button>
     </div>
+    <div class="np-dl"><span id="npDlStatus"></span></div>
     <div class="np-progress">
       <span id="npCur">0:00</span>
       <input type="range" id="npSeek" min="0" max="1000" value="0" />
