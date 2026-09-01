@@ -38,6 +38,7 @@ public class ScanFragment extends Fragment {
     private final long t0 = 0;
     private long startedAt;
     private boolean running;
+    private long lastListRefresh;
 
     private static final int[] DEPTHS = {50, 100, 300, Integer.MAX_VALUE};
 
@@ -122,19 +123,25 @@ public class ScanFragment extends Fragment {
         bar.setIndeterminate(true);
         final int startCount = tg.scanResults.size();
         tg.scanRange(0, depth, new Tg.ScanListener() {
-            private long lastUi = 0;
             @Override
             public void onProgress(int found, int chats) {
-                long now = System.currentTimeMillis();
-                if (now - lastUi < 400) return; // 🔧 ضد ANR — حداکثر ۲.۵ بار در ثانیه
-                lastUi = now;
                 main.post(() -> {
                     if (!isAdded()) return;
                     long sec = (System.currentTimeMillis() - startedAt) / 1000;
+                    detail.setVisibility(View.VISIBLE);
                     detail.setText(getString(R.string.scan_progress_line, chats, found, sec));
-                    refreshResults();
-                    updateButtons();
-                    if (found > startCount) bar.setIndeterminate(false);
+                    // ⚡ رفرش کامل لیست را throttle کن — با هزاران تراک، کپی کل لیست هر چت UI را قفل می‌کرد
+                    long now = System.currentTimeMillis();
+                    if (now - lastListRefresh > 400) {
+                        lastListRefresh = now;
+                        refreshResults();
+                        updateButtons();
+                    }
+                    bar.setIndeterminate(false);
+                    int cap = depth == Integer.MAX_VALUE ? Math.max(chats, 1) : Math.max(depth, 1);
+                    bar.setMax(cap);
+                    bar.setProgress(Math.min(chats, cap));
+                    state.setText(getString(R.string.scan_status_bar, chats, found));
                 });
             }
 
@@ -217,7 +224,7 @@ public class ScanFragment extends Fragment {
                     if (w == 0) {
                         if (!downloaded) {
                             Ui.toast(requireContext(), getString(R.string.downloading, 0));
-                            Tg.get(requireContext()).download(t.fileId, t.expectedSize, new Tg.DownloadListener() {
+                            Tg.get(requireContext()).downloadTrack(t, new Tg.DownloadListener() {
                                 @Override
                                 public void onProgress(int pct) {
                                 }

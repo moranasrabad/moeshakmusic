@@ -162,3 +162,15 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px;
 
 ::-webkit-scrollbar { width: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 6px; }
+
+/* ---------- group selection bar (v6.0.3) ---------- */
+.sel-bar { position: fixed; bottom: 0; inset-inline: 0; z-index: 60; display: flex; align-items: center; gap: 10px; padding: 12px 18px; background: var(--bg2); border-top: 1px solid var(--line); box-shadow: 0 -8px 30px rgba(0,0,0,.4); }
+.sel-bar .sel-count { font-weight: 700; color: var(--accent); margin-inline-end: auto; }
+.sel-bar .ic { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; }
+.sel-bar .sel-del { color: #ef4444; }
+.track-check { font-size: 20px; color: var(--accent); width: 28px; text-align: center; flex: 0 0 auto; cursor: pointer; }
+.track-row.selected { background: var(--accent-soft); border-radius: 10px; }
+.track-row .ic svg, .np-controls .ic svg, .pb-controls .ic svg, .pb-right .ic svg, .np-close svg { display: block; }
+.np-close { display: flex; align-items: center; justify-content: center; }
+.np-dl .btn svg { color: inherit; }
+#selBar ~ * { pointer-events: auto; }

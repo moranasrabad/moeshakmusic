@@ -31,7 +31,6 @@ import java.util.concurrent.Executors;
 import ir.moeshakteam.moeshakmusic.R;
 import ir.moeshakteam.moeshakmusic.data.Track;
 import ir.moeshakteam.moeshakmusic.data.Tg;
-import ir.moeshakteam.moeshakmusic.player.PlayerManager;
 import ir.moeshakteam.moeshakmusic.util.Ui;
 
 /**
@@ -341,33 +340,14 @@ public class ChatsFragment extends Fragment {
 
     /** لیست موزیک‌های این چت + دکمه اسکن عمیق */
     private void showChatTracks(TdApi.Chat c) {
-        List<Track> tracks = new ArrayList<>();
-        for (Track t : Tg.get(requireContext()).library) {
-            if (t.chatId == c.id) tracks.add(t);
+        String title = c.title == null || c.title.isEmpty() ? getString(R.string.tab_chats) : c.title;
+        if (requireActivity() instanceof MainActivity) {
+            ChannelTracksFragment f = new ChannelTracksFragment();
+            Bundle b = new Bundle();
+            b.putLong(ChannelTracksFragment.ARG_CHAT_ID, c.id);
+            b.putString(ChannelTracksFragment.ARG_CHAT_TITLE, title);
+            f.setArguments(b);
+            ((MainActivity) requireActivity()).showFullScreen(f);
         }
-        String title = c.title == null ? "چت" : c.title;
-        androidx.appcompat.app.AlertDialog.Builder b = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle(getString(R.string.chat_tracks, title));
-        if (tracks.isEmpty()) {
-            b.setMessage(getString(R.string.chat_no_tracks));
-        } else {
-            String[] names = new String[tracks.size()];
-            for (int i = 0; i < tracks.size(); i++) {
-                names[i] = "🎵 " + tracks.get(i).title + " — " + Ui.fmtDuration(tracks.get(i).duration);
-            }
-            b.setItems(names, (d, w) -> {
-                PlayerManager.get(requireContext()).play(tracks, w);
-                if (requireActivity() instanceof MainActivity)
-                    ((MainActivity) requireActivity()).openPlayer();
-            });
-            b.setNeutralButton(getString(R.string.play_all), (d, w) -> {
-                PlayerManager.get(requireContext()).play(tracks, 0);
-                if (requireActivity() instanceof MainActivity)
-                    ((MainActivity) requireActivity()).openPlayer();
-            });
-        }
-        b.setPositiveButton(getString(R.string.chat_deep_scan), (d, w) -> deepScan(c));
-        b.setNegativeButton(R.string.back, null);
-        b.show();
     }
 }

@@ -30,16 +30,19 @@ import ir.moeshakteam.moeshakmusic.data.Track;
 import ir.moeshakteam.moeshakmusic.player.PlayerManager;
 import ir.moeshakteam.moeshakmusic.util.Ui;
 
-/** لیست دانلودها با گروه‌بندی کانال + دانلود کامل کانال — تیم موشک */
+/** لیست دانلودها با گروه‌بندی کانال + دانلودهای فعال (پیشرفت زنده + لغو) — تیم موشک */
 public class DownloadsFragment extends Fragment {
 
     private RecyclerView recycler;
     private TextView empty, tvTitle;
+    private LinearLayout activeList;
+    private TextView activeHeader;
     private DownloadsAdapter adapter;
     private final Handler main = new Handler(Looper.getMainLooper());
     /** حالت انتخاب کانال برای دانلود گروهی */
     private boolean pickMode;
     private String pendingChannel;
+    private final Runnable dlHook = () -> main.post(this::renderActive);
 
     @Nullable
     @Override
@@ -53,11 +56,14 @@ public class DownloadsFragment extends Fragment {
         recycler = v.findViewById(R.id.recycler);
         empty = v.findViewById(R.id.empty);
         tvTitle = v.findViewById(R.id.tvTitle);
+        activeList = v.findViewById(R.id.activeList);
+        activeHeader = v.findViewById(R.id.activeHeader);
         adapter = new DownloadsAdapter();
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         recycler.setAdapter(adapter);
         View bDl = v.findViewById(R.id.btnDownloadChannel);
         if (bDl != null) bDl.setOnClickListener(x -> pickChannelToDownload());
+        Tg.get(requireContext()).addDownloadsListener(dlHook);
 
         // ---------- وایر کردن نوار انتخاب گروهی — تیم موشک ----------
         selectionBar = v.findViewById(R.id.selectionBar);
@@ -94,11 +100,65 @@ public class DownloadsFragment extends Fragment {
         refresh();
     }
 
+    @Override
+    public void onDestroyView() {
+        try { Tg.get(requireContext()).removeDownloadsListener(dlHook); } catch (Throwable ignored) {}
+        super.onDestroyView();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (activeList != null) renderActive();
+    }
+
     private void refresh() {
         List<DownloadStore.Entry> all = DownloadStore.get(requireContext()).all();
         adapter.setItems(all);
         empty.setVisibility(all.isEmpty() ? View.VISIBLE : View.GONE);
         tvTitle.setText(getString(R.string.downloads_title) + " (" + all.size() + ")");
+        renderActive();
+    }
+
+    /** رندر دانلودهای فعال — پیشرفت زنده + دکمهٔ لغو */
+    private void renderActive() {
+        if (activeList == null || !isAdded()) return;
+        List<Tg.ActiveDownload> actives = Tg.get(requireContext()).activeDownloads();
+        activeList.removeAllViews();
+        if (activeHeader != null) {
+            activeHeader.setVisibility(actives.isEmpty() ? View.GONE : View.VISIBLE);
+        }
+        for (Tg.ActiveDownload ad : actives) {
+            View row = LayoutInflater.from(requireContext())
+                    .inflate(R.layout.item_active_download, activeList, false);
+            TextView tvTitle = row.findViewById(R.id.tvTitle);
+            TextView tvSub = row.findViewById(R.id.tvSub);
+            android.widget.ProgressBar bar = row.findViewById(R.id.progress);
+            ImageButton btnCancel = row.findViewById(R.id.btnCancel);
+
+            if (tvTitle != null) tvTitle.setText(ad.title);
+            if (tvSub != null) {
+                tvSub.setText(ad.chatTitle == null || ad.chatTitle.isEmpty()
+                        ? getString(R.string.downloading, ad.pct < 0 ? 0 : ad.pct)
+                        : ad.chatTitle + " • " + getString(R.string.downloading, ad.pct < 0 ? 0 : ad.pct));
+            }
+            if (bar != null) {
+                if (ad.pct >= 0) {
+                    bar.setIndeterminate(false);
+                    bar.setProgress(ad.pct);
+                } else {
+                    bar.setIndeterminate(true);
+                }
+            }
+            if (btnCancel != null) {
+                btnCancel.setOnClickListener(x -> {
+                    Tg.get(requireContext()).cancelDownloadTrack(ad.fileId);
+                    Ui.toast(requireContext(), R.string.download_cancelled);
+                    renderActive();
+                });
+            }
+            activeList.addView(row);
+        }
     }
 
     /** انتخاب کانال برای دانلود همهٔ موزیک‌هایش */
@@ -248,7 +308,7 @@ public class DownloadsFragment extends Fragment {
         }
         Track t = list.get(i);
         Tg.log("⬇️ دانلود کانال [" + (i + 1) + "/" + list.size() + "] " + t.title);
-        Tg.get(requireContext()).download(t.fileId, t.expectedSize, new Tg.DownloadListener() {
+        Tg.get(requireContext()).downloadTrack(t, new Tg.DownloadListener() {
             @Override
             public void onProgress(int pct) {
             }

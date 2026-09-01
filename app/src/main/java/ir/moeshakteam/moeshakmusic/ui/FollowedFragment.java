@@ -37,8 +37,8 @@ public class FollowedFragment extends Fragment {
     private TrackAdapter adapter;
     private RecyclerView recycler;
     private View empty;
-    private Runnable hook;
     private final Handler main = new Handler(Looper.getMainLooper());
+    private final Runnable libHook = this::refreshSafe;
 
     @Nullable
     @Override
@@ -70,11 +70,8 @@ public class FollowedFragment extends Fragment {
             Tg.get(requireContext()).checkFollowed(ok -> main.post(this::refreshSafe));
         });
 
-        // هوک رفرش زنده — ✅ v6.0.1: مستقل، هوک TracksFragment را پاک نمی‌کند
-        Tg tg = Tg.get(requireContext());
-        hook = this::refreshSafe;
-        tg.addFollowedHook(hook);
-        tg.addLibraryHook(hook);
+        Tg.get(requireContext()).onFollowedUpdate = this::refreshSafe;
+        Tg.get(requireContext()).addLibraryListener(libHook);
 
         // پایش دوره‌ای
         startPeriodicCheck();
@@ -88,13 +85,11 @@ public class FollowedFragment extends Fragment {
                 if (!isAdded()) return;
                 Tg.get(requireContext()).checkFollowed(ok -> main.post(() -> {
                     refreshSafe();
-                    // ✅ v6.0.2: چک دوره‌ای سبک‌تر — ۳۰ دقیقه (قبلاً ۱۵ دقیقه، روی اکانت‌های
-                    // سنگین مدام دیپ‌اسکن تمام‌تاریخچه اجرا می‌کرد و اپ را کند می‌کرد)
-                    if (isAdded()) main.postDelayed(this, 30 * 60 * 1000L);
+                    if (isAdded()) main.postDelayed(this, 15 * 60 * 1000L);
                 }));
             }
         };
-        main.postDelayed(loop, 2 * 60 * 1000L);
+        main.postDelayed(loop, 30_000);
     }
 
     private void refreshSafe() {
@@ -103,19 +98,15 @@ public class FollowedFragment extends Fragment {
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
-        refresh();
+    public void onDestroyView() {
+        try { Tg.get(requireContext()).removeLibraryListener(libHook); } catch (Throwable ignored) {}
+        super.onDestroyView();
     }
 
     @Override
-    public void onDestroyView() {
-        if (hook != null) {
-            Tg tg = Tg.get(requireContext());
-            tg.removeFollowedHook(hook);
-            tg.removeLibraryHook(hook);
-        }
-        super.onDestroyView();
+    public void onResume() {
+        super.onResume();
+        refresh();
     }
 
     private void refresh() {
@@ -144,7 +135,10 @@ public class FollowedFragment extends Fragment {
 
                 av.setText(f.title.isEmpty() ? "?" : f.title.substring(0, 1).toUpperCase());
                 name.setText(f.title);
-                meta.setText(getString(R.string.followed_card_meta, f.knownIds.size()));
+                // تعداد واقعی آهنگ‌های این چت در کتابخانه — دقیقاً همان چیزی که با لمس می‌بینی
+                int libCount = 0;
+                for (Track t : tg.library) if (t.chatId == f.chatId) libCount++;
+                meta.setText(getString(R.string.followed_card_meta, libCount));
 
                 play.setOnClickListener(x -> {
                     List<Track> tracks = libraryTracksOf(f.chatId);
@@ -152,8 +146,14 @@ public class FollowedFragment extends Fragment {
                         Ui.toast(requireContext(), R.string.followed_empty_tracks);
                         return;
                     }
-                    PlayerManager.get(requireContext()).play(tracks, 0);
-                    if (getActivity() instanceof MainActivity) ((MainActivity) getActivity()).openPlayer();
+                    if (getActivity() instanceof MainActivity) {
+                        ChannelTracksFragment ctf = new ChannelTracksFragment();
+                        Bundle b = new Bundle();
+                        b.putLong(ChannelTracksFragment.ARG_CHAT_ID, f.chatId);
+                        b.putString(ChannelTracksFragment.ARG_CHAT_TITLE, f.title);
+                        ctf.setArguments(b);
+                        ((MainActivity) getActivity()).showFullScreen(ctf);
+                    }
                 });
                 // لغو دنبال — فقط با این دکمه + تأیید
                 unf.setOnClickListener(x -> new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
@@ -171,16 +171,14 @@ public class FollowedFragment extends Fragment {
             }
         }
 
-        status.setText(getString(R.string.followed_status, fs.size()));
+        int followTracks = 0;
+        for (FollowStore.Followed f : fs) followTracks += f.knownIds.size();
+        status.setText(fs.isEmpty()
+                ? getString(R.string.stats_follow_empty)
+                : getString(R.string.stats_follow, fs.size(), followTracks));
 
-        // آهنگ‌های جدید — فقط آن‌هایی که در کتابخانه هستند (بقیه پنهان)
-        java.util.List<Track> inLib = new java.util.ArrayList<>();
-        for (Track t : tg.followedResults) {
-            for (Track l : tg.library) {
-                if (l.sameAs(t)) { inLib.add(t); break; }
-            }
-        }
-        adapter.setAll(inLib);
+        // آهنگ‌های جدید — فقط از چت‌های دنبال‌شده (نتایج اسکن جای خودشان: تب اسکن/کتابخانه)
+        adapter.setAll(tg.followedResults);
         boolean emptyTracks = adapter.isEmpty();
         recycler.setVisibility(emptyTracks ? View.GONE : View.VISIBLE);
         empty.setVisibility(emptyTracks ? View.VISIBLE : View.GONE);

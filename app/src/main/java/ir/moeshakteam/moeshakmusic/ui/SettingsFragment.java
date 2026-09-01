@@ -44,12 +44,12 @@ public class SettingsFragment extends Fragment {
         v.findViewById(R.id.btnBack).setOnClickListener(x ->
                 requireActivity().onBackPressed());
 
-        // 📌 نسخه — از BuildConfig (خودکار)
+        // 📌 نسخهٔ اپ — مستقیم از BuildConfig (همیشه به‌روز)
         try {
             android.widget.TextView tvVer = v.findViewById(R.id.tvVersion);
             if (tvVer != null) {
                 tvVer.setText("نسخه " + ir.moeshakteam.moeshakmusic.BuildConfig.VERSION_NAME
-                        + " (" + ir.moeshakteam.moeshakmusic.BuildConfig.VERSION_CODE + ")");
+                        + " (build " + ir.moeshakteam.moeshakmusic.BuildConfig.VERSION_CODE + ")");
             }
         } catch (Throwable ignored) {
         }

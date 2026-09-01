@@ -6,7 +6,7 @@ const { getTdjson } = require('prebuilt-tdlib')
 tdl.configure({ tdjson: getTdjson(), verbosityLevel: 1 })
 
 const CHUNK = 512 * 1024 // readFilePart limit
-const APP_VERSION = '6.0.2'
+const APP_VERSION = '6.0.3'
 
 // Map TDLib authorization_state names to friendly UI keys.
 const AUTH_MAP = {
@@ -279,6 +279,42 @@ class Tg {
         from = msgs[msgs.length - 1].id
         onProgress && onProgress({ processed, total, found: results.length, chatTitle })
         if (msgs.length < perPage) break
+      }
+
+      // ✅ فالبک: اگر تاریخچهٔ مستقیم چیزی نداد (مثلاً چت شخصی که هنوز
+      // تاریخچه‌اش از سرور همگام نشده)، با searchChatMessages فیلتر Audio امتحان کن.
+      if (results.length === 0 && !this.scanCancel) {
+        let fromMsg = 0
+        for (let page = 0; page < 200; page++) {
+          if (this.scanCancel) break
+          let sres
+          try {
+            sres = await this.invoke({
+              _: 'searchChatMessages',
+              chat_id: chatId,
+              query: '',
+              sender_id: null,
+              from_message_id: fromMsg,
+              offset: 0,
+              limit: 100,
+              filter: { _: 'searchMessagesFilterAudio' }
+            })
+          } catch (e) { break }
+          const smsgs = (sres && sres.messages) || []
+          if (!smsgs.length) break
+          for (const m of smsgs) {
+            const t = extractTrack(m, chatId, chatTitle)
+            if (t) {
+              const key = t.chatId + ':' + t.messageId
+              if (!seen.has(key)) { seen.add(key); t.chatPhotoFileId = chatPhotoFileId; results.push(t) }
+            }
+          }
+          processed += smsgs.length
+          if (total === null) total = (sres.total_count || 0)
+          onProgress && onProgress({ processed, total, found: results.length, chatTitle })
+          if (smsgs.length < 100) break
+          fromMsg = smsgs[smsgs.length - 1].id
+        }
       }
     } catch (e) {}
     onProgress && onProgress({ processed, total, found: results.length, chatTitle, done: true, canceled: this.scanCancel })

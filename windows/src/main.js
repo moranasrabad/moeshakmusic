@@ -388,6 +388,12 @@ function registerIpc() {
           return { added: added.length }
         }
         case 'lib.clear': store.saveLibrary([]); send('lib', []); return true
+        // ✅ تنظیم کامل کتابخانه (برای حذف گروهی)
+        case 'lib.set': {
+          store.saveLibrary(payload.tracks || [])
+          send('lib', store.library())
+          return true
+        }
 
         case 'fav.toggle': {
           const track = payload.track
@@ -416,6 +422,17 @@ function registerIpc() {
           const pl = pls.find(p => p.id === payload.plId)
           if (pl && !pl.tracks.find(t => t.id === payload.track.id)) pl.tracks.push(payload.track)
           store.savePlaylists(pls); send('pl', pls); return true
+        }
+        case 'pl.addMany': {
+          const pls = store.playlists()
+          const pl = pls.find(p => p.id === payload.plId)
+          if (pl) {
+            for (const track of (payload.tracks || [])) {
+              if (!pl.tracks.find(t => (t.chatId + ':' + t.messageId) === (track.chatId + ':' + track.messageId))) pl.tracks.push(track)
+            }
+            store.savePlaylists(pls); send('pl', pls)
+          }
+          return true
         }
         case 'pl.remove': {
           const pls = store.playlists()

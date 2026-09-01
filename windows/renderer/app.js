@@ -18,6 +18,10 @@ const I18N = {
     scanAllChats: '🔍 اسکن همهٔ چت‌ها', scanned: 'اسکن شد', found: 'آهنگ پیدا شد', addAll: 'افزودن همه به کتابخانه',
     follow: 'دنبال‌کردن', unfollow: 'لغو دنبال', followedNone: 'هنوز چتی را دنبال نکرده‌ای. از تب چت‌ها یا کانال‌ها دکمهٔ 🔔 را بزن.',
     followedCheck: 'بررسی آهنگ جدید', followedCount: 'چت دنبال‌شده', allChats: 'همه', archive: 'آرشیو',
+    searchChat: 'جستجوی چت…', scanThis: 'اسکن این چت', openTracks: 'دیدن آهنگ‌ها',
+    clearLibrary: 'پاک کردن کتابخانه', clearLibConfirm: 'همهٔ آهنگ‌های کتابخانه پاک شوند؟',
+    selAll: 'انتخاب همه', selNone: 'بی‌انتخاب', selAddFav: 'فیوریت', selDl: 'دانلود', selAddPl: 'پلی‌لیست', selDel: 'حذف از کتابخانه', selCount: 'انتخاب‌شده',
+    back: 'بازگشت', libraryEmpty: 'کتابخانه خالی است', scanChats: 'چت‌ها برای اسکن',
     newPlaylist: 'پلی‌لیست جدید', name: 'نام', create: 'ساخت', delete: 'حذف',
     addToPlaylist: 'افزودن به پلی‌لیست', download: 'دانلود', remove: 'حذف',
     addToQueue: 'افزودن به صف', fullScan: 'اسکن کامل', downloadAll: 'دانلود کامل',
@@ -44,6 +48,10 @@ const I18N = {
     scanAllChats: '🔍 Scan all chats', scanned: 'Scanned', found: 'tracks found', addAll: 'Add all to library',
     follow: 'Follow', unfollow: 'Unfollow', followedNone: 'Not following any chats yet. Tap 🔔 in Chats or Channels.',
     followedCheck: 'Check for new tracks', followedCount: 'followed chats', allChats: 'All', archive: 'Archive',
+    searchChat: 'Search chats…', scanThis: 'Scan this chat', openTracks: 'View tracks',
+    clearLibrary: 'Clear library', clearLibConfirm: 'Remove all tracks from the library?',
+    selAll: 'Select all', selNone: 'Clear', selAddFav: 'Favorite', selDl: 'Download', selAddPl: 'Playlist', selDel: 'Remove', selCount: 'selected',
+    back: 'Back', libraryEmpty: 'Library is empty', scanChats: 'Chats to scan',
     newPlaylist: 'New playlist', name: 'Name', create: 'Create', delete: 'Delete',
     addToPlaylist: 'Add to playlist', download: 'Download', remove: 'Remove',
     addToQueue: 'Add to queue', fullScan: 'Full scan', downloadAll: 'Download all',
@@ -72,7 +80,93 @@ const S = {
   queue: [], qIndex: -1,
   shuffle: false, repeat: 'off',
   current: null, playing: false,
-  dlInfo: {}
+  dlInfo: {},
+  // انتخاب گروهی (مثل اندروید)
+  selMode: false,
+  selKeys: new Set(),
+  selListKey: 'tracks'
+}
+
+function trackKey(t) { return (t && (t.chatId + ':' + t.messageId)) || '' }
+function enterSelection(listKey) {
+  S.selMode = true
+  S.selKeys = new Set()
+  S.selListKey = listKey
+  renderSelBar()
+  loadTabs()
+}
+function exitSelection() {
+  S.selMode = false
+  S.selKeys = new Set()
+  const bar = document.getElementById('selBar')
+  if (bar) bar.remove()
+  loadTabs()
+}
+function toggleSel(track) {
+  const k = trackKey(track)
+  if (S.selKeys.has(k)) S.selKeys.delete(k); else S.selKeys.add(k)
+  renderSelBar()
+}
+function renderSelBar() {
+  let bar = document.getElementById('selBar')
+  if (!S.selMode) { if (bar) bar.remove(); return }
+  if (!bar) {
+    bar = document.createElement('div')
+    bar.id = 'selBar'
+    bar.className = 'sel-bar'
+    $('#content').appendChild(bar)
+  }
+  const n = S.selKeys.size
+  bar.innerHTML = `
+    <span class="sel-count">${n} ${t('selCount')}</span>
+    <button class="ic" id="selAll" title="${t('selAll')}">☑</button>
+    <button class="ic" id="selNone" title="${t('selNone')}">☐</button>
+    <button class="ic" id="selFav" title="${t('selAddFav')}">❤️</button>
+    <button class="ic" id="selDl" title="${t('selDl')}">⬇</button>
+    <button class="ic" id="selPl" title="${t('selAddPl')}">📁</button>
+    <button class="ic sel-del" id="selDel" title="${t('selDel')}">🗑</button>
+    <button class="ic" id="selClose">✕</button>`
+  const selTracks = () => getList(S.selListKey).filter(tr => S.selKeys.has(trackKey(tr)))
+  bar.querySelector('#selAll').onclick = () => {
+    getList(S.selListKey).forEach(tr => S.selKeys.add(trackKey(tr)))
+    renderSelBar(); loadTabs()
+  }
+  bar.querySelector('#selNone').onclick = () => { S.selKeys.clear(); renderSelBar(); loadTabs() }
+  bar.querySelector('#selClose').onclick = exitSelection
+  bar.querySelector('#selFav').onclick = async () => {
+    for (const tr of selTracks()) await api.invoke('fav.toggle', { track: tr })
+    toast('✓'); exitSelection()
+  }
+  bar.querySelector('#selDl').onclick = async () => {
+    for (const tr of selTracks()) await api.invoke('dl.add', { track: tr })
+    toast('✓'); exitSelection()
+  }
+  bar.querySelector('#selPl').onclick = async () => {
+    const tracks = selTracks()
+    if (!tracks.length) return
+    const pls = await api.invoke('pl.list')
+    const ov = modal(`<h3>${t('addToPlaylist')}</h3><div id="plList">${
+      pls.map(p => `<button class="btn ghost" data-id="${p.id}" style="text-align:start">${esc(p.name)} (${p.tracks.length})</button>`).join('') ||
+      `<div class="empty">${t('empty')}</div>`
+    }</div><button id="plNew3" class="btn ghost">＋ ${t('newPlaylist')}</button>`)
+    ov.querySelectorAll('[data-id]').forEach(b => b.onclick = async () => {
+      await api.invoke('pl.addMany', { plId: parseInt(b.dataset.id, 10), tracks })
+      ov.remove(); toast('✓ ' + tracks.length); exitSelection()
+    })
+    ov.querySelector('#plNew3').onclick = async () => {
+      const name = prompt(t('newPlaylist')) || t('newPlaylist')
+      const pl = await api.invoke('pl.create', { name })
+      await api.invoke('pl.addMany', { plId: pl.id, tracks })
+      ov.remove(); toast('✓ ' + tracks.length); exitSelection()
+    }
+  }
+  bar.querySelector('#selDel').onclick = async () => {
+    if (S.selListKey !== 'tracks') { toast('—'); return }
+    const keep = S.tracks.filter(tr => !S.selKeys.has(trackKey(tr)))
+    await api.invoke('lib.set', { tracks: keep })
+    S.tracks = await api.invoke('lib.list')
+    toast('✓'); exitSelection()
+  }
 }
 
 const audio = $('#audio')
@@ -256,14 +350,18 @@ function loadTabs() {
 // ---------------- track row ----------------
 function trackRowHtml(track, index, listKey) {
   const isPlaying = S.current && S.current.id === track.id
-  return `<div class="track-row ${isPlaying ? 'playing' : ''}" data-idx="${index}">
+  const k = trackKey(track)
+  const checked = S.selMode && S.selKeys.has(k)
+  const fav = S.favorites.some(f => trackKey(f) === k || f.id === track.id)
+  return `<div class="track-row ${isPlaying ? 'playing' : ''} ${checked ? 'selected' : ''}" data-idx="${index}" data-key="${esc(k)}">
+    ${S.selMode ? `<div class="track-check" data-act="check">${checked ? '☑' : '☐'}</div>` : ''}
     <div class="track-cover" style="background-image:url('${coverOf(track)}')">${track.albumCoverFileId || track.chatPhotoFileId ? '' : '♪'}</div>
     <div class="track-meta">
       <div class="track-title">${esc(track.title)}</div>
       <div class="track-sub">${esc(track.performer || track.chatTitle || '')} · ${fmt(track.duration)}</div>
     </div>
     <div class="track-actions">
-      <button class="ic" data-act="fav" title="♥">${S.favorites.some(f => f.id === track.id) ? '❤️' : '🤍'}</button>
+      <button class="ic" data-act="fav" title="♥">${fav ? '❤️' : '🤍'}</button>
       <button class="ic" data-act="pl" title="${t('addToPlaylist')}">＋</button>
       <button class="ic" data-act="dl" title="${t('download')}">⬇</button>
       <button class="ic" data-act="queue" title="${t('addToQueue')}">≡</button>
@@ -274,8 +372,28 @@ function trackRowHtml(track, index, listKey) {
 function wireTrackRows(container, listKey) {
   container.querySelectorAll('.track-row').forEach(row => {
     const idx = parseInt(row.dataset.idx, 10)
+    // لمس طولانی (راست‌کلیک روی دسکتاپ) → ورود به حالت انتخاب گروهی
+    let pressTimer = null
+    row.oncontextmenu = e => {
+      e.preventDefault()
+      if (!S.selMode) enterSelection(listKey)
+      const tr = getList(listKey)[idx]
+      if (tr) toggleSel(tr)
+      loadTabs()
+    }
     row.onclick = e => {
-      if (e.target.closest('button')) return
+      const actEl = e.target.closest('[data-act]')
+      if (actEl && actEl.dataset.act === 'check') {
+        const tr = getList(listKey)[idx]
+        if (tr) { toggleSel(tr); loadTabs() }
+        return
+      }
+      if (S.selMode) {
+        const tr = getList(listKey)[idx]
+        if (tr) toggleSel(tr)
+        return
+      }
+      if (actEl) return // دکمه‌ها جداگانه هندل می‌شوند
       playList(getList(listKey), idx)
     }
     row.querySelectorAll('button').forEach(b => b.onclick = e => {
@@ -283,6 +401,7 @@ function wireTrackRows(container, listKey) {
       const list = getList(listKey)
       const track = list[idx]
       const act = b.dataset.act
+      if (S.selMode) return
       if (act === 'fav') api.invoke('fav.toggle', { track })
       else if (act === 'pl') openAddToPlaylist(track)
       else if (act === 'dl') api.invoke('dl.add', { track })
@@ -297,26 +416,39 @@ function getList(key) {
   if (key === 'scanResults') return S.scanResults
   if (key === 'playlist') return S.playlistTracks || []
   if (key === 'search') return S.searchResults || []
+  if (key === 'chatTracks') return S.chatTracks || []
   return S.tracks
 }
 
 // ---------------- tabs ----------------
 function renderTracks() {
   const body = $('#tabBody')
+  if (S.selMode) { /* رندر با حالت انتخاب پایین انجام می‌شود */ }
   if (!S.tracks.length) {
     body.innerHTML = `<div class="empty">${t('emptyTracks')}</div>`
     return
   }
-  $('#topActions').innerHTML = `<button class="btn ghost small" id="playAllBtn">${t('playAll')}</button>`
+  $('#topActions').innerHTML =
+    `<button class="btn ghost small" id="playAllBtn">${t('playAll')}</button>` +
+    `<button class="btn ghost small" id="selModeBtn" style="margin-inline-start:6px">☑</button>` +
+    `<button class="btn ghost small" id="clearLibBtn" style="margin-inline-start:6px">🗑 ${t('clearLibrary')}</button>`
   $('#playAllBtn').onclick = () => playList(S.tracks, 0)
+  $('#selModeBtn').onclick = () => { S.selMode ? exitSelection() : enterSelection('tracks') }
+  $('#clearLibBtn').onclick = () => {
+    const ov = modal(`<h3>${t('clearLibrary')}</h3><p>${t('clearLibConfirm')}</p>
+      <button id="clYes" class="btn primary">${t('yes')}</button><button id="clNo" class="btn ghost">${t('no')}</button>`)
+    ov.querySelector('#clYes').onclick = async () => { await api.invoke('lib.clear'); S.tracks = []; ov.remove(); loadTabs() }
+    ov.querySelector('#clNo').onclick = () => ov.remove()
+  }
+  const list = S.selMode ? getList('tracks') : S.tracks
   body.innerHTML = `<input id="searchInput" placeholder="${t('search')}" />` +
-    S.tracks.map((tr, i) => trackRowHtml(tr, i, 'tracks')).join('')
+    list.map((tr, i) => trackRowHtml(tr, i, 'tracks')).join('')
   wireTrackRows(body, 'tracks')
   const si = $('#searchInput')
   si.oninput = () => {
     const q = si.value.trim().toLowerCase()
     if (!q) { renderTracks(); return }
-    S.searchResults = S.tracks.filter(tr => (tr.title + ' ' + (tr.performer || '')).toLowerCase().includes(q))
+    S.searchResults = S.tracks.filter(tr => (tr.title + ' ' + (tr.performer || '') + ' ' + (tr.chatTitle || '')).toLowerCase().includes(q))
     body.querySelectorAll('.track-row').forEach(r => r.remove())
     const holder = document.createElement('div')
     holder.innerHTML = S.searchResults.map((tr, i) => trackRowHtml(tr, i, 'search')).join('')
@@ -398,9 +530,10 @@ function renderNowDl() {
     label = t('downloading') + ' ' + prog + '%'
     busy = true
   } else label = t('download')
-  if (btn) { btn.textContent = done ? '✓' : '⬇'; btn.classList.toggle('busy', busy) }
+  if (btn) { btn.classList.toggle('busy', busy); btn.style.opacity = done ? '0.5' : '1' }
+  const dlText = $('#npDlText'); if (dlText) dlText.textContent = done ? '✓' : ''
   if (status) status.textContent = label
-  if (pbDl) pbDl.textContent = done ? '✓' : '⬇'
+  if (pbDl) { pbDl.style.opacity = done ? '0.5' : '1'; setIcon(pbDl, 'i-dl') }
 }
 function renderSettingsDl() {
   const box = $('#dlActiveBox')
@@ -430,33 +563,36 @@ function renderSettingsDl() {
 }
 
 let scanBusy = false
+let scanDepth = 300
+
+function chatIcon(c) {
+  if (c.kind === 'channel') return '📢'
+  if (c.kind === 'group') return '👥'
+  return '👤' // personal/private chat
+}
+
+// تب اسکن با UI درست: لیست همهٔ چت‌ها (خصوصی/گروه/کانال) با سرچ
 function renderScan() {
   const body = $('#tabBody')
-  const chats = S.channels.length ? S.channels : S.chats
   body.innerHTML = `
-    <p class="section-label">${t('scanHint')}</p>
     <button id="scanAllBtn" class="btn primary" style="margin-bottom:12px">${t('scanAllChats')}</button>
-    <select id="scanChat" class="set-select" style="width:100%"></select>
-    <p class="section-label">${t('depth')}</p>
-    <div class="scan-controls">
-      ${[50, 100, 300, 'all'].map(d => `<button class="chip ${d === 100 ? 'active' : ''}" data-depth="${d}">${d === 'all' ? '∞' : d}</button>`).join('')}
-      <button id="scanStart" class="btn primary" style="width:auto;padding:8px 16px">${t('start')}</button>
-      <button id="scanCancel" class="btn ghost" style="width:auto;padding:8px 16px">${t('cancel')}</button>
-    </div>
-    <div id="scanProgress" class="hidden">
+    <div id="scanProgress" class="hidden" style="margin-bottom:12px">
       <div class="progress-bar"><div class="progress-fill" id="scanFill"></div></div>
       <div class="progress-label" id="scanLabel"></div>
     </div>
-    <div id="scanResults"></div>`
-  const sel = $('#scanChat')
-  chats.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.title; sel.appendChild(o) })
-  let depth = 100
+    <input id="scanSearch" placeholder="${t('searchChat')}" />
+    <p class="section-label">${t('depth')}</p>
+    <div class="scan-controls">
+      ${[50, 100, 300].map(d => `<button class="chip ${d === scanDepth ? 'active' : ''}" data-depth="${d}">${d}</button>`).join('')}
+      <button class="chip ${scanDepth === 'all' ? 'active' : ''}" data-depth="all">∞</button>
+    </div>
+    <p class="section-label">${t('scanChats')}</p>
+    <div id="scanChatList"></div>`
   body.querySelectorAll('.chip').forEach(ch => ch.onclick = () => {
-    body.querySelectorAll('.chip').forEach(x => x.classList.remove('active'))
+    scanDepth = ch.dataset.depth === 'all' ? 'all' : parseInt(ch.dataset.depth, 10)
+    body.querySelectorAll('.scan-controls .chip').forEach(x => x.classList.remove('active'))
     ch.classList.add('active')
-    depth = ch.dataset.depth
   })
-  // ✅ v6.0.0: اسکن همهٔ چت‌ها یک‌جا — مثل اندروید (دیگر لازم نیست یکی‌یکی انتخاب کنی)
   $('#scanAllBtn').onclick = async () => {
     if (scanBusy) { api.invoke('scan.cancel'); return }
     scanBusy = true
@@ -464,34 +600,132 @@ function renderScan() {
     $('#scanProgress').classList.remove('hidden')
     $('#scanFill').style.width = '0%'
     try {
-      const depthPerChat = depth === 'all' ? 300 : parseInt(depth, 10) || 300
+      const depthPerChat = scanDepth === 'all' ? 99999 : (scanDepth || 300)
       const res = await api.invoke('scan.all', { depth: depthPerChat })
       S.scanResults = res.tracks || []
+      S.scanView = 'results'
     } finally {
       scanBusy = false
       $('#scanAllBtn').textContent = t('scanAllChats')
-      renderScanResults()
+      if (S.scanView === 'results') renderScanResults()
     }
   }
-  $('#scanStart').onclick = async () => {
-    if (scanBusy) return
-    scanBusy = true
-    const chatId = parseInt(sel.value, 10)
-    $('#scanProgress').classList.remove('hidden')
-    $('#scanFill').style.width = '0%'
+  drawScanChatList(S.chats && S.chats.length ? S.chats : S.channels)
+  // اگر چت‌ها هنوز لود نشده‌اند
+  if (!S.chats || !S.chats.length) {
+    api.invoke('chats.all').then(chats => {
+      S.chats = chats
+      if (S.scanView !== 'results') drawScanChatList(chats)
+    })
+  }
+  $('#scanSearch').oninput = async () => {
+    const q = $('#scanSearch').value.trim()
+    if (!q) { drawScanChatList(S.chats || []); return }
+    drawScanChatList(await api.invoke('chats.search', { query: q }))
+  }
+  if (S.scanView === 'chat' && S.scanChatId) renderChatTracks(S.scanChatId)
+  else if (S.scanView === 'results' && S.scanResults.length) renderScanResults()
+}
+
+// لیست چت‌های قابل‌اسکن
+function drawScanChatList(chats) {
+  const list = $('#scanChatList')
+  if (!list) return
+  list.innerHTML = (chats || []).map(c => `
+    <div class="chat-row" data-cid="${c.id}">
+      <div class="chat-avatar" style="background-image:url('${artUrl(c.photoFileId)}')">${c.photoFileId ? '' : esc((c.title || '?')[0])}</div>
+      <div class="track-meta">
+        <div class="track-title">${esc(c.title || ('#' + c.id))}</div>
+        <div class="track-sub">${chatIcon(c)} ${c.kind}</div>
+      </div>
+      <div class="track-actions" style="opacity:1">
+        <button class="ic" data-act="tracks" title="${t('openTracks')}">♫</button>
+        <button class="ic" data-act="scan" title="${t('fullScan')}">🔍</button>
+      </div>
+    </div>`).join('') || `<div class="empty">${t('empty')}</div>`
+  list.querySelectorAll('.chat-row').forEach(row => {
+    const cid = parseInt(row.dataset.cid, 10)
+    const chat = (chats || []).find(c => c.id === cid)
+    row.querySelector('[data-act=tracks]').onclick = () => renderChatTracks(cid)
+    row.querySelector('[data-act=scan]').onclick = () => renderChatTracks(cid, true)
+  })
+}
+
+// آهنگ‌های یک چت — دیپ‌اسکن و نمایش با UI درست (شامل چت شخصی)
+async function renderChatTracks(chatId, rescan) {
+  const body = $('#tabBody')
+  const chat = (S.chats || []).find(c => c.id === chatId) || (await api.invoke('chats.get', { chatId }).catch(() => null))
+  const title = chat ? chat.title : ('#' + chatId)
+  S.scanView = 'chat'; S.scanChatId = chatId
+  body.innerHTML = `
+    <button class="btn ghost small" id="chatBack" style="margin-bottom:10px">${t('back')}</button>
+    <h3 style="margin:4px 0">${esc(title)}</h3>
+    <div id="ctBar" class="scan-controls" style="margin:8px 0">
+      <button class="chip active" data-cd="300">300</button>
+      <button class="chip" data-cd="all">∞</button>
+      <button id="ctScan" class="btn primary" style="width:auto;padding:8px 16px">${t('scanThis')}</button>
+      <button id="ctAdd" class="btn ghost" style="width:auto;padding:8px 16px" disabled>${t('addAll')} (0)</button>
+    </div>
+    <div id="ctProgress" class="hidden" style="margin-bottom:10px">
+      <div class="progress-bar"><div class="progress-fill" id="ctFill"></div></div>
+      <div class="progress-label" id="ctLabel"></div>
+    </div>
+    <div id="ctList"></div>`
+  $('#chatBack').onclick = () => { S.scanView = 'list'; renderScan() }
+  let ctDepth = 300, ctTracks = [], ctBusy = false
+  body.querySelectorAll('[data-cd]').forEach(ch => ch.onclick = () => {
+    ctDepth = ch.dataset.cd === 'all' ? 'all' : parseInt(ch.dataset.cd, 10)
+    body.querySelectorAll('[data-cd]').forEach(x => x.classList.remove('active'))
+    ch.classList.add('active')
+  })
+  const drawTracks = () => {
+    const box = $('#ctList')
+    const add = $('#ctAdd')
+    if (add) { add.disabled = !ctTracks.length; add.textContent = `${t('addAll')} (${ctTracks.length})` }
+    if (!ctTracks.length) { box.innerHTML = `<div class="empty">${t('empty')}</div>`; return }
+    box.innerHTML = ctTracks.map((tr, i) => trackRowHtml(tr, i, 'chatTracks')).join('')
+    wireTrackRows(box, 'chatTracks')
+  }
+  S.chatTracks = []
+  const runScan = async () => {
+    if (ctBusy) { api.invoke('scan.cancel'); return }
+    ctBusy = true
+    $('#ctScan').textContent = t('cancel')
+    $('#ctProgress').classList.remove('hidden')
     try {
-      const res = await api.invoke('scan.start', { chatId, mode: depth })
-      S.scanResults = res.tracks || []
+      const mode = ctDepth === 'all' ? 'all' : String(ctDepth)
+      const res = await api.invoke('scan.start', { chatId, mode })
+      ctTracks = res.tracks || []
+      S.chatTracks = ctTracks
+      drawTracks()
     } finally {
-      scanBusy = false
-      renderScanResults()
+      ctBusy = false
+      const b = $('#ctScan'); if (b) b.textContent = t('scanThis')
     }
   }
-  $('#scanCancel').onclick = () => api.invoke('scan.cancel')
-  if (S.scanResults.length) renderScanResults()
+  $('#ctScan').onclick = runScan
+  $('#ctAdd').onclick = async () => {
+    await api.invoke('lib.add', { tracks: ctTracks })
+    S.tracks = await api.invoke('lib.list')
+    toast('✓ ' + ctTracks.length)
+  }
+  drawTracks()
+  if (rescan || !ctTracks.length) runScan()
+}
+
+// پیشرفت زنده برای صفحهٔ آهنگ‌های یک چت (همان هندلر سراسری از این استفاده می‌کند)
+function renderChatScanProgress(p) {
+  if (S.scanView !== 'chat' || p.allChats) return
+  const fill = $('#ctFill'), label = $('#ctLabel')
+  if (!fill) return
+  if (p.total) fill.style.width = Math.min(100, Math.round(100 * p.processed / p.total)) + '%'
+  label.textContent = `${t('scanned')} ${p.processed}${p.total ? '/' + p.total : ''} — ${p.found} ${t('found')}`
+  if (p.done) setTimeout(() => { const b = $('#ctProgress'); if (b) b.classList.add('hidden') }, 1500)
 }
 
 function renderScanProgress(p) {
+  // اگر در صفحهٔ آهنگ‌های یک چت هستیم، آنجا پیشرفت نشان بده
+  if (S.scanView === 'chat' && !p.allChats) { renderChatScanProgress(p); return }
   const fill = $('#scanFill'), label = $('#scanLabel')
   if (!fill) return
   if (p.allChats) {
@@ -911,26 +1145,26 @@ audio.addEventListener('timeupdate', () => {
   $('#pbCur').textContent = fmt(audio.currentTime); $('#npCur').textContent = fmt(audio.currentTime)
   $('#pbDur').textContent = fmt(d); $('#npDur').textContent = fmt(d)
 })
-audio.addEventListener('play', () => { S.playing = true; $('#pbPlay').textContent = '⏸'; $('#npPlay').textContent = '⏸'; startViz() })
-audio.addEventListener('pause', () => { S.playing = false; $('#pbPlay').textContent = '▶'; $('#npPlay').textContent = '▶' })
+function setIcon(btn, symbol) {
+  if (!btn) return
+  const use = btn.querySelector('use')
+  if (use) use.setAttribute('href', '#' + symbol)
+}
+function syncPlayIcons() {
+  setIcon($('#pbPlay'), S.playing ? 'i-pause' : 'i-play')
+  setIcon($('#npPlay'), S.playing ? 'i-pause' : 'i-play')
+}
+audio.addEventListener('play', () => { S.playing = true; syncPlayIcons(); startViz() })
+audio.addEventListener('pause', () => { S.playing = false; syncPlayIcons() })
 
 function updateNowPlaying() {
   $('#playerBar').classList.remove('hidden')
-  $('#pbPlay').textContent = S.playing ? '⏸' : '▶'
-  $('#npPlay').textContent = S.playing ? '⏸' : '▶'
+  syncPlayIcons()
   $('#pbShuffle').classList.toggle('active', S.shuffle)
   $('#npShuffle').classList.toggle('active', S.shuffle)
-  const rep = { off: '🔁', all: '🔁', one: '🔂' }[S.repeat]
-  $('#pbRepeat').textContent = rep
-  $('#npRepeat').textContent = rep
   $('#pbRepeat').classList.toggle('active', S.repeat !== 'off')
   $('#npRepeat').classList.toggle('active', S.repeat !== 'off')
   document.querySelectorAll('.track-row').forEach(r => r.classList.remove('playing'))
-  if (S.current) {
-    document.querySelectorAll('.track-row').forEach(r => {
-      // highlight handled on render; simple approach: re-render current tab
-    })
-  }
 }
 
 // wire player controls

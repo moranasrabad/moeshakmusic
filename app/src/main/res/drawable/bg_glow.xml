@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <gradient android:type="radial" android:gradientRadius="420dp"
-        android:startColor="@color/moeshak_glow" android:endColor="#00000000" />
-</shape>
+<!-- هاله‌ی پشت کاور — نسخه‌ی PNG تا از کرش RadialGradient در برخی دستگاه‌ها جلوگیری شود -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/bg_glow_img"
+    android:gravity="fill" />

@@ -63,13 +63,25 @@ public final class Tg implements TdClient.UpdateHandler {
         }
     }
 
-    /** اسکن عمیق: حداکثر چت و صفحه در هر چت */
+    /** اسکن عمیق: حداکثر تعداد چت؛ هر چت بدون سقف تا انتهای تاریخچه خوانده می‌شود */
     public static final int MAX_CHATS = 1500;
-    public static final int PAGES_PER_CHAT = 6;
-    private static final int PAGE_SIZE = 100;
 
     private static final ExecutorService EXEC = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "TgWorker");
+        t.setDaemon(true);
+        return t;
+    });
+
+    /** ترد جدا برای عملیات پروکسی — پشت صف اسکن گیر نکند */
+    private static final ExecutorService PROXY_EXEC = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "TgProxy");
+        t.setDaemon(true);
+        return t;
+    });
+
+    /** ترد جدا برای دانلود — پشت اسکن/چک‌فالو گیر نکند */
+    private static final ExecutorService DL_EXEC = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "TgDownload");
         t.setDaemon(true);
         return t;
     });
@@ -80,6 +92,54 @@ public final class Tg implements TdClient.UpdateHandler {
     private final Prefs prefs;
     private final List<AuthListener> authListeners = new CopyOnWriteArrayList<>();
     private final Map<Integer, DownloadTask> downloads = new ConcurrentHashMap<>();
+
+    /** دانلودهای فعال — برای نمایش زنده + لغو در بخش دانلودها */
+    public static class ActiveDownload {
+        public final int fileId;
+        public final String title;
+        public final String chatTitle;
+        public final long size;
+        public volatile int pct = -1; // -1 = در صف/شروع
+        public volatile boolean done;
+        public volatile boolean error;
+
+        ActiveDownload(int fileId, String title, String chatTitle, long size) {
+            this.fileId = fileId;
+            this.title = title;
+            this.chatTitle = chatTitle;
+            this.size = size;
+        }
+    }
+
+    private final Map<Integer, ActiveDownload> activeDownloads = new ConcurrentHashMap<>();
+    /** هوک UI — بعد از هر تغییر در دانلودهای فعال صدا زده می‌شود */
+    public volatile Runnable onDownloadsChanged;
+    private final List<Runnable> downloadListeners = new CopyOnWriteArrayList<>();
+
+    public void addDownloadsListener(Runnable r) {
+        if (r != null && !downloadListeners.contains(r)) downloadListeners.add(r);
+    }
+
+    public void removeDownloadsListener(Runnable r) {
+        downloadListeners.remove(r);
+    }
+
+    private void notifyDownloadsChanged() {
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            Runnable r = onDownloadsChanged;
+            if (r != null) {
+                try { r.run(); } catch (Throwable ignored) {}
+            }
+            for (Runnable l : downloadListeners) {
+                try { l.run(); } catch (Throwable ignored) {}
+            }
+        });
+    }
+
+    /** لیست دانلودهای فعال (اسنپ‌شات — امن برای UI) */
+    public List<ActiveDownload> activeDownloads() {
+        return new ArrayList<>(activeDownloads.values());
+    }
 
     public final Map<Long, String> chatTitles = new ConcurrentHashMap<>();
     public final List<Track> library = new CopyOnWriteArrayList<>();
@@ -119,17 +179,12 @@ public final class Tg implements TdClient.UpdateHandler {
         for (Track t : favsSaved) PlayerManager.FAVORITES.add(PlayerManager.key(t));
         if (!favsSaved.isEmpty())
             log("❤️ " + favsSaved.size() + " فیوریت از دیسک بازیابی شد (پس از ورود، fileId تازه گرفته می‌شود)");
-        // 📚 کتابخانهٔ ذخیره‌شده — async (ضد ANR)
-        final android.content.Context appCtx = ctx;
-        new Thread(() -> {
-            List<Track> lib = LibraryPersistence.load(appCtx);
-            if (!lib.isEmpty()) {
-                library.addAll(lib);
-                sortNewestFirst(library);
-                log("📚 " + lib.size() + " تراک کتابخانه از دیسک لود شد");
-                notifyLibraryChanged();
-            }
-        }, "LibLoad").start();
+        // 📚 کتابخانهٔ ذخیره‌شده — دیگر بعد از ری‌استارت خالی نیست
+        List<Track> lib = LibraryPersistence.load(ctx);
+        if (!lib.isEmpty()) {
+            library.addAll(lib);
+            log("📚 " + lib.size() + " تراک کتابخانه از دیسک لود شد");
+        }
     }
 
     /** ذخیرهٔ کتابخانه روی دیسک — بعد از هر تغییر مهم */
@@ -145,14 +200,17 @@ public final class Tg implements TdClient.UpdateHandler {
     private final List<Track> favsSaved;
     /** آیا بازیابی بعد از ورود انجام شده؟ */
     private volatile boolean restored;
-    /** هوک UI — بعد از تغییر کتابخانه صدا زده می‌شود */
+    /** هوک UI — بعد از تغییر کتابخانه صدا زده می‌شود (چند شنونده؛ رونویسی نشود) */
     public volatile Runnable onLibraryChanged;
-    /** ✅ v6.0.1: هوک‌های متعدد کتابخانه — چند فرگمنت هم‌زمان رفرش شوند (قبلاً
-     *  FollowedFragment هوک TracksFragment را بازنویسی می‌کرد و TRACKS زنده نمی‌شد) */
-    public final List<Runnable> libraryHooks = new CopyOnWriteArrayList<>();
+    private final List<Runnable> libraryListeners = new CopyOnWriteArrayList<>();
 
-    public void addLibraryHook(Runnable r) { libraryHooks.add(r); }
-    public void removeLibraryHook(Runnable r) { libraryHooks.remove(r); }
+    public void addLibraryListener(Runnable r) {
+        if (r != null && !libraryListeners.contains(r)) libraryListeners.add(r);
+    }
+
+    public void removeLibraryListener(Runnable r) {
+        libraryListeners.remove(r);
+    }
     /** شنونده‌های پیشرفت اسکن عمیق (UI) */
     public final List<ScanListener> deepListeners = new CopyOnWriteArrayList<>();
 
@@ -188,29 +246,84 @@ public final class Tg implements TdClient.UpdateHandler {
         setAuth(Auth.LOADING, null);
     }
 
-    /** اعمال پروکسی MTProto (اگه در تنظیمات فعال باشه) */
+    /** آخرین پروکسیِ اعمال‌شده (proxyId در TDLib + امضای آدرس) — ضدِ AddProxy تکراری */
+    private volatile int appliedProxyId = -1;
+    private volatile String appliedProxySig = "";
+
+    /** اعمال پروکسی MTProto (اگه در تنظیمات فعال باشه) — بدون AddProxy تکراری و ری‌استارت اتصال */
     public void applyProxy() {
-        if (prefs.proxyEnabled() && !prefs.proxyServer().trim().isEmpty()) {
-            log("📶 اعمال پروکسی: " + prefs.proxyServer() + ":" + prefs.proxyPort());
+        PROXY_EXEC.execute(() -> {
             try {
-                TdApi.Proxy p = new TdApi.Proxy(
-                        prefs.proxyServer().trim(),
-                        Integer.parseInt(prefs.proxyPort().trim().isEmpty() ? "443" : prefs.proxyPort().trim()),
-                        new TdApi.ProxyTypeMtproto(prefs.proxySecret().trim()));
-                TdClient.send(new TdApi.AddProxy(p, true, "moeshak"), r -> {
-                    if (r instanceof TdApi.Error) {
-                        Ui.toast(ctx, ctx.getString(R.string.proxy_bad));
-                    } else {
-                        Ui.toast(ctx, ctx.getString(R.string.proxy_active));
+                if (prefs.proxyEnabled() && !prefs.proxyServer().trim().isEmpty()) {
+                    String server = prefs.proxyServer().trim();
+                    String secret = prefs.proxySecret().trim();
+                    int port;
+                    try {
+                        port = Integer.parseInt(prefs.proxyPort().trim().isEmpty() ? "443" : prefs.proxyPort().trim());
+                    } catch (Exception e) {
+                        port = 443;
                     }
-                });
-            } catch (Exception e) {
-                Ui.toast(ctx, ctx.getString(R.string.proxy_bad));
+                    if (server.isEmpty() || secret.isEmpty()) {
+                        disableProxy();
+                        return;
+                    }
+                    String sig = server + ":" + port + ":" + secret;
+                    if (sig.equals(appliedProxySig) && appliedProxyId > 0) {
+                        // همین پروکسی قبلاً اضافه شده — فقط فعالش کن (بدون قطع‌ووصل دوباره)
+                        TdClient.send(new TdApi.EnableProxy(appliedProxyId), r -> {});
+                        return;
+                    }
+                    // بگرد ببین قبلاً اضافه شده؟ (جلوگیری از انباشت پروکسی تکراری در TDLib)
+                    int existing = (auth == Auth.READY) ? findProxyId(server, port, secret) : 0;
+                    if (existing > 0) {
+                        appliedProxyId = existing;
+                        appliedProxySig = sig;
+                        TdClient.send(new TdApi.EnableProxy(existing), r -> {});
+                        return;
+                    }
+                    log("📶 اعمال پروکسی: " + server + ":" + port);
+                    TdApi.Proxy p = new TdApi.Proxy(server, port, new TdApi.ProxyTypeMtproto(secret));
+                    TdClient.send(new TdApi.AddProxy(p, true, "moeshak"), r -> {
+                        if (r instanceof TdApi.Error) {
+                            Ui.toast(ctx, ctx.getString(R.string.proxy_bad));
+                        } else if (r instanceof TdApi.AddedProxy) {
+                            appliedProxyId = ((TdApi.AddedProxy) r).id;
+                            appliedProxySig = sig;
+                            Ui.toast(ctx, ctx.getString(R.string.proxy_active));
+                        }
+                    });
+                } else {
+                    disableProxy();
+                }
+            } catch (Throwable ignored) {
             }
-        } else {
-            TdClient.send(new TdApi.DisableProxy(), r -> {
-            });
+        });
+    }
+
+    private void disableProxy() {
+        appliedProxyId = -1;
+        appliedProxySig = "";
+        TdClient.send(new TdApi.DisableProxy(), r -> {});
+    }
+
+    /** پیدا کردن proxy_id یک پروکسیِ از قبل اضافه‌شده با همین آدرس */
+    private int findProxyId(String server, int port, String secret) {
+        try {
+            TdApi.AddedProxies aps = (TdApi.AddedProxies) TdClient.sync(new TdApi.GetProxies());
+            if (aps == null || aps.proxies == null) return 0;
+            for (TdApi.AddedProxy ap : aps.proxies) {
+                if (ap == null || ap.proxy == null) continue;
+                if (!server.equals(ap.proxy.server)) continue;
+                if (ap.proxy.port != port) continue;
+                if (ap.proxy.type instanceof TdApi.ProxyTypeMtproto) {
+                    String sec = ((TdApi.ProxyTypeMtproto) ap.proxy.type).secret;
+                    if (secret.equals(sec == null ? "" : sec)) return ap.id;
+                }
+            }
+        } catch (Exception e) {
+            // قبل از READY یا هنگام خطا — بی‌خیال، AddProxy تازه می‌زنیم
         }
+        return 0;
     }
 
     // ---------- آپدیت‌های TDLib ----------
@@ -651,14 +764,13 @@ public final class Tg implements TdClient.UpdateHandler {
 
     /** اسکن دستی: از چت from به بعد، count تا چت — نتایج به scanResults می‌روند (جدا از کتابخانه) */
     public void scanRange(int from, int count, ScanListener cb) {
-        // ✅ v6.0.1: اسکن دستی حتماً به بخش SCAN می‌رود (قبلاً اشتباهی مستقیم به library
-        // می‌رفت و در نتیجه دکمهٔ «افزودن به کتابخانه» کاری نمی‌کرد و TRACKS هم به‌روز نمی‌شد)
+        // نتایج باید در «بخش اسکن» دیده شوند و کاربر با «افزودن به کتابخانه» منتقلشان کند
         scanRange(from, count, cb, false);
     }
 
     /**
      * اسکن با مقصد قابل انتخاب:
-     * toLibrary=true → کتابخانهٔ دائمی (فقط از «افزودن به کتابخانه» استفاده می‌شود)
+     * toLibrary=true → کتابخانهٔ دائمی
      * toLibrary=false → نتایج اسکن (بخش SCAN)
      */
     public void scanRange(int from, int count, ScanListener cb, boolean toLibrary) {
@@ -675,9 +787,11 @@ public final class Tg implements TdClient.UpdateHandler {
             int chats = 0;
             int files = 0;
             List<Track> buffer = new ArrayList<>();
-            java.util.Set<String> bufKeys = new HashSet<>();
             try {
-                log("🚀 اسکن v2 شروع شد (موتور تاریخچهٔ مستقیم) → " + (toLibrary ? "کتابخانه" : "بخش اسکن"));
+                // همهٔ حالت‌های اسکن، کل تاریخچهٔ هر چت را می‌خوانند (کامل — هیچ سقفی روی پیام‌ها نیست)
+                final boolean deep = count >= Integer.MAX_VALUE;
+                log("🚀 اسکن شروع شد → " + (toLibrary ? "کتابخانه" : "بخش اسکن")
+                        + " (" + (deep ? "همهٔ چت‌ها" : count + " چت") + " — تاریخچهٔ کامل هر چت)");
                 List<TdApi.Chat> all = loadAllChats();
                 log("📋 " + all.size() + " چت لود شد");
                 // Saved Messages همیشه اول
@@ -695,7 +809,6 @@ public final class Tg implements TdClient.UpdateHandler {
                 }
                 int end = (int) Math.min(all.size(), (long) from + count);
                 cb.onProgress(target.size(), 0);
-                int[] msgs = new int[1];
                 for (int i = from; i < end; i++) {
                     if (scanCancel) {
                         log("⏹ اسکن توسط کاربر لغو شد");
@@ -703,14 +816,31 @@ public final class Tg implements TdClient.UpdateHandler {
                     }
                     TdApi.Chat c = all.get(i);
                     String title = c.title == null || c.title.isEmpty() ? "بدون‌نام" : c.title;
-                    List<Track> found = scanChatHistory(c, msgs);
+                    // 🔍 لاگ زندهٔ شروع هر چت — معلوم باشد اسکن در جریان است
+                    log("🔍 [" + (i + 1) + "/" + end + "] در حال اسکن «" + title + "»…");
+                    List<Track> found;
+                    try {
+                        int[] msgs = new int[1];  // شمارندهٔ مستقل برای هر چت
+                        long t0 = System.currentTimeMillis();
+                        found = scanChatHistory(c, msgs, deep);
+                        long ms = System.currentTimeMillis() - t0;
+                        log("✅ [" + (i + 1) + "/" + end + "] «" + title + "» → " + msgs[0] + " پیام، "
+                                + found.size() + " فایل صوتی (" + ms + "ms)");
+                    } catch (Exception e) {
+                        // یک چت خراب نباید کل اسکن را از کار بیندازد
+                        log("⚠️ «" + title + "» اسکن نشد: " + e.getMessage());
+                        found = new ArrayList<>();
+                    }
                     files += found.size();
-                    log("[" + (i + 1) + "/" + end + "] «" + title + "» → " + msgs[0] + " پیام، " + found.size() + " فایل صوتی");
                     for (Track t : found) {
-                        // ✅ v6.0.2: دیتاچک داخل‌بافر با HashSet (قبلاً O(buffer²) بود و کند می‌کرد)
-                        String key = t.chatId + ":" + t.messageId;
-                        if (!bufKeys.add(key)) continue;
-                        buffer.add(t);
+                        boolean isNew = true;
+                        for (Track ex : buffer) {
+                            if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
+                                isNew = false;
+                                break;
+                            }
+                        }
+                        if (isNew) buffer.add(t);
                     }
                     chats++;
                     scannedChats = chats;
@@ -725,13 +855,14 @@ public final class Tg implements TdClient.UpdateHandler {
                         buffer.clear();
                     }
                     cb.onProgress(target.size(), chats);
-                    if (chats % 8 == 0) Thread.sleep(800);
                 }
                 // ادغام یک‌جای بافر (بدون هزاران کپی COW) — بدون تکرار
                 int added = mergeNew(buffer, target);
                 sortNewestFirst(target);
-                if (toLibrary && added > 0) persistLibraryNow();
-                log("🏁 اسکن تمام شد: " + chats + " چت، " + files + " فایل صوتی، " + added + " تراک جدید");
+                log("🏁 اسکن تمام شد: " + chats + " چت، " + files + " فایل صوتی، " + added + " تراک جدید → "
+                        + (toLibrary ? "کتابخانه " + library.size() : "نتایج اسکن " + scanResults.size()));
+                if (toLibrary) persistLibraryNow();
+                notifyLibraryChanged();
                 long dsec = (System.currentTimeMillis() - tStart) / 1000;
                 ir.moeshakteam.moeshakmusic.util.NotifHelper.scanDone(ctx, chats, target.size(), (int) dsec);
                 cb.onDone(target.size());
@@ -744,24 +875,22 @@ public final class Tg implements TdClient.UpdateHandler {
         });
     }
 
-    /**
-     * افزودن تراک‌های بدون تکرار به مقصد — تعداد اضافه‌شده.
-     * ✅ v6.0.2: با HashSet (O(n)) — نسخهٔ قبلی O(n²) روی CopyOnWriteArrayList بود و
-     * روی هزاران تراک، اپ را به‌شدت کند می‌کرد. فقط خودِ مقصد چک می‌شود؛ این یعنی
-     * موقع انتقال نتایج اسکن به کتابخانه، هر تراکی که در کتابخانه نیست واقعاً منتقل می‌شود.
-     */
+    /** افزودن تراک‌های بدون تکرار به مقصد — تعداد اضافه‌شده */
     private int mergeNew(List<Track> buffer, List<Track> target) {
-        java.util.Set<String> targetKeys = new HashSet<>();
-        for (Track ex : target) targetKeys.add(ex.chatId + ":" + ex.messageId);
-        List<Track> toAdd = new ArrayList<>();
-        java.util.Set<String> addedKeys = new HashSet<>();
-        for (Track t : buffer) {
-            String k = t.chatId + ":" + t.messageId;
-            if (targetKeys.contains(k) || !addedKeys.add(k)) continue;
-            toAdd.add(t);
+        // O(n) با HashSet — قبلاً O(n²) بود و با کتابخانهٔ بزرگ (هزاران تراک) UI/اسکن را قفل می‌کرد
+        java.util.Set<String> existing = new java.util.HashSet<>();
+        for (Track t : library) existing.add(t.chatId + ":" + t.messageId);
+        if (target != library) {
+            for (Track t : scanResults) existing.add(t.chatId + ":" + t.messageId);
         }
-        if (!toAdd.isEmpty()) target.addAll(toAdd);
-        return toAdd.size();
+        int added = 0;
+        for (Track t : buffer) {
+            if (existing.add(t.chatId + ":" + t.messageId)) {
+                target.add(t);
+                added++;
+            }
+        }
+        return added;
     }
 
     private void sortNewestFirst(List<Track> list) {
@@ -798,23 +927,30 @@ public final class Tg implements TdClient.UpdateHandler {
         notifyLibraryChanged();
     }
 
-    /** 📊 آمار کتابخانه — در لاگ و UI */
-    public String libraryStats() {
-        int lib = library.size();
-        int favs = PlayerManager.FAVORITES.size();
-        int fol = followedResults.size();
-        int dl = DownloadStore.get(ctx).all().size();
-        return "📚 " + lib + " در کتابخانه • ❤️ " + favs + " فیوریت • 🔔 " + fol + " جدید فالو • ⬇️ " + dl + " دانلود";
+    /** هوک UI بعد از تغییر کتابخانه */
+    private void notifyLibraryChanged() {
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            Runnable r = onLibraryChanged;
+            if (r != null) {
+                try { r.run(); } catch (Throwable ignored) {}
+            }
+            for (Runnable l : libraryListeners) {
+                try { l.run(); } catch (Throwable ignored) {}
+            }
+        });
     }
 
-    /** هوک UI بعد از تغییر کتابخانه — همهٔ شنونده‌ها (TRACKS + FOLLOWED + …) */
-    private void notifyLibraryChanged() {
-        log("📊 " + libraryStats());
-        final List<Runnable> hooks = new ArrayList<>(libraryHooks);
-        Runnable legacy = onLibraryChanged;
-        if (legacy != null) hooks.add(legacy);
-        android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
-        for (Runnable r : hooks) h.post(r);
+    /** رفرش کتابخانه از دیسک + لاگ وضعیت */
+    public void reloadLibraryFromDisk() {
+        log("♻️ رفرش کتابخانه از دیسک… (الان " + library.size() + " موزیک)");
+        List<Track> lib = LibraryPersistence.load(ctx);
+        if (!lib.isEmpty()) {
+            mergeNew(lib, library);
+            sortNewestFirst(library);
+        }
+        log("📚 کتابخانه بعد از رفرش: " + library.size() + " موزیک"
+                + (library.isEmpty() ? " — خالی است" : ""));
+        notifyLibraryChanged();
     }
 
     // ---------- ذخیرهٔ دائمی: فقط فیوریت‌ها (+ پلی‌لیست‌ها در PlaylistStore) ----------
@@ -951,11 +1087,6 @@ public final class Tg implements TdClient.UpdateHandler {
     public final List<Track> followedResults = new CopyOnWriteArrayList<>();
     /** هوک UI بعد از هر چک */
     public volatile Runnable onFollowedUpdate;
-    /** ✅ v6.0.1: هوک‌های متعدد چک فالو */
-    public final List<Runnable> followedHooks = new CopyOnWriteArrayList<>();
-
-    public void addFollowedHook(Runnable r) { followedHooks.add(r); }
-    public void removeFollowedHook(Runnable r) { followedHooks.remove(r); }
 
     public interface FollowDone { void onDone(boolean foundNew); }
 
@@ -1058,11 +1189,8 @@ public final class Tg implements TdClient.UpdateHandler {
                         log("🎵 جدید از «" + chTitle + "»: " + newOnes.size());
                     }
                 }
-                final List<Runnable> fHooks = new ArrayList<>(followedHooks);
-                Runnable fLegacy = onFollowedUpdate;
-                if (fLegacy != null) fHooks.add(fLegacy);
-                android.os.Handler fh = new android.os.Handler(android.os.Looper.getMainLooper());
-                for (Runnable r : fHooks) fh.post(r);
+                Runnable r = onFollowedUpdate;
+                if (r != null) new android.os.Handler(android.os.Looper.getMainLooper()).post(r);
             } catch (Exception e) {
                 log("⚠️ چک دنبال‌شده: " + e.getMessage());
             } finally {
@@ -1141,59 +1269,37 @@ public final class Tg implements TdClient.UpdateHandler {
     /** تراک استخراج‌شده از JSON خام */
     private static class RawTrack {
         long msgId, chatId;
-        int date, duration, fileId;
+        int date, duration, fileId, thumbFileId;
         long size;
         String title = "", performer = "";
         byte[] artMini;
     }
 
     /**
-     * اسکن یک چت — موتور v3: GetChatHistory مستقیم + استخراج مستقیم JSON.
+     * اسکن یک چت — موتور v4: GetChatHistory مستقیم، کل تاریخچهٔ چت بدون سقف.
+     * deep=true → سرچ مکمل هم اجرا می‌شود (حالت «همهٔ چت‌ها»).
      * هیچ reflection/codec ای در مسیر نیست — چیزی که تلگرام می‌فرستد همان است که می‌خوانیم.
      */
-    private List<Track> scanChatHistory(TdApi.Chat chat, int[] msgsOut) {
-        List<Track> out = new ArrayList<>();
-        Set<String> seen = new HashSet<>();
-        long chatId = chat.id;
-        String chatTitle = chat.title == null ? "" : chat.title;
-        if (chatId == myUserId) chatTitle = "Saved ⭐";
-        long from = 0L;
-        for (int round = 0; round < 6; round++) {
-            org.json.JSONObject h;
-            try {
-                h = TdClient.syncRaw(new TdApi.GetChatHistory(chatId, from, 0, 50, false));
-            } catch (Exception e) {
-                log("   ⚠️ خطای تاریخچه «" + chatTitle + "»: " + e.getMessage());
-                break;
-            }
-            org.json.JSONArray arr = h.optJSONArray("messages");
-            int n = arr == null ? 0 : arr.length();
-            msgsOut[0] += n;
-            Integer photoFileId = chatPhotoFileIds.get(chatId);
-            for (RawTrack r : extractAudioRaw(chatId, h)) {
-                if (seen.add(chatId + ":" + r.msgId)) {
-                    Track tt = toTrack(r, chatTitle);
-                    if (photoFileId != null) tt.chatPhotoFileId = photoFileId;
-                    out.add(tt);
-                }
-            }
-            if (n < 50 || arr == null) break;
-            from = arr.optJSONObject(n - 1).optLong("id");
-        }
-        if (out.isEmpty()) {
+    private List<Track> scanChatHistory(TdApi.Chat chat, int[] msgsOut, boolean deep) {
+        // کل تاریخچهٔ چت — همیشه کامل (هیچ سقفی روی پیام‌ها)
+        List<Track> out = deepHistory(chat, msgsOut, null);
+        // سرچ مکمل فقط در حالت عمیق (روی چت‌های بدون فایل، سرچِ اضافه فقط کند می‌کند)
+        if (out.isEmpty() && deep) {
             // سرچ فقط به‌عنوان مکمل
+            String chatTitle = chat.title == null ? "" : chat.title;
+            Set<String> seen = new HashSet<>();
             for (TdApi.SearchMessagesFilter filter : new TdApi.SearchMessagesFilter[]{
                     new TdApi.SearchMessagesFilterAudio()}) {
                 org.json.JSONObject f;
                 try {
-                    f = TdClient.syncRaw(new TdApi.SearchChatMessages(chatId, null, "", null, 0L, 0, 50, filter));
+                    f = TdClient.syncRaw(new TdApi.SearchChatMessages(chat.id, null, "", null, 0L, 0, 50, filter));
                 } catch (Exception e) {
                     break;
                 }
-                for (RawTrack r : extractAudioRaw(chatId, f)) {
-                    if (seen.add(chatId + ":" + r.msgId)) {
+                for (RawTrack r : extractAudioRaw(chat.id, f)) {
+                    if (seen.add(chat.id + ":" + r.msgId)) {
                         Track tt = toTrack(r, chatTitle);
-                        Integer pf = chatPhotoFileIds.get(chatId);
+                        Integer pf = chatPhotoFileIds.get(chat.id);
                         if (pf != null) tt.chatPhotoFileId = pf;
                         out.add(tt);
                     }
@@ -1234,6 +1340,12 @@ public final class Tg implements TdClient.UpdateHandler {
                 t.duration = a.optInt("duration");
                 t.fileId = f.optInt("id");
                 t.size = f.optLong("expected_size", f.optLong("size"));
+                // کاور خود موزیک: تامبنیل آلبوم (باکیفیت) + مینی‌تامب
+                org.json.JSONObject coverThumb = a.optJSONObject("album_cover_thumbnail");
+                if (coverThumb != null) {
+                    org.json.JSONObject cf = coverThumb.optJSONObject("file");
+                    if (cf != null) t.thumbFileId = cf.optInt("id");
+                }
                 org.json.JSONObject mini = a.optJSONObject("album_cover_minithumbnail");
                 if (mini != null) {
                     try {
@@ -1254,6 +1366,12 @@ public final class Tg implements TdClient.UpdateHandler {
                 t.performer = "فایل";
                 t.fileId = f.optInt("id");
                 t.size = f.optLong("expected_size", f.optLong("size"));
+                // کاور فایل صوتی (thumbnail سند) — اگر فرستنده گذاشته باشد
+                org.json.JSONObject dThumb = d.optJSONObject("thumbnail");
+                if (dThumb != null) {
+                    org.json.JSONObject df = dThumb.optJSONObject("file");
+                    if (df != null) t.thumbFileId = df.optInt("id");
+                }
                 out.add(t);
             }
         }
@@ -1272,13 +1390,14 @@ public final class Tg implements TdClient.UpdateHandler {
         t.expectedSize = r.size;
         t.chatTitle = chatTitle;
         t.artMini = r.artMini;
+        t.thumbFileId = r.thumbFileId;
         return t;
     }
 
     /** شناسهٔ کاربر خودم (برای تشخیص Saved Messages) */
     public volatile long myUserId;
 
-    /** اسکن عمیق دستی یک چت — از مرور چت‌ها (تا ۳۰۰۰ پیام) */
+    /** اسکن عمیق دستی یک چت — از مرور چت‌ها (کل تاریخچه، بدون سقف) */
     public void deepScanChat(long chatId, ScanListener cb) {
         if (scanning) {
             Ui.toast(ctx, ctx.getString(R.string.scan_already));
@@ -1294,12 +1413,11 @@ public final class Tg implements TdClient.UpdateHandler {
                     cb.onDone(0);
                     return;
                 }
-                log("🔎 اسکن عمیق «" + (chat.title == null ? "بدون‌نام" : chat.title) + "» (تا ۳۰۰۰ پیام)…");
+                log("🔎 اسکن عمیق «" + (chat.title == null ? "بدون‌نام" : chat.title) + "» (کل تاریخچه)…");
                 int[] msgs = new int[1];
                 List<Track> found = deepHistory(chat, msgs,
                         (fnd, m) -> { for (Tg.ScanListener x : deepListeners) x.onProgress(fnd, m); });
                 int added = mergeNew(found, scanResults);
-                for (Track t : found.subList(Math.max(0, found.size() - added), found.size())) log("🎵 +" + t.title);
                 log("🔎 اسکن عمیق تمام شد: " + msgs[0] + " پیام → " + added + " موزیک جدید (در بخش اسکن)");
                 cb.onDone(added);
             } catch (Exception e) {
@@ -1311,50 +1429,56 @@ public final class Tg implements TdClient.UpdateHandler {
         });
     }
 
-    /** تاریخچهٔ عمیق با استخراج raw: تا ۳۰۰۰ پیام */
+    /** تاریخچهٔ عمیق با استخراج raw: کل تاریخچهٔ چت بدون سقف */
     public interface DeepProgress { void onProgress(int found, int msgs); }
 
-    /** اسکن عمیق — کل تاریخچهٔ چت، هرچقدر که دارد (بدون سقف) — تیم موشک */
+    /** اسکن تاریخچهٔ چت — کل تاریخچه، هرچقدر که دارد (بدون سقف) — تیم موشک */
     private List<Track> deepHistory(TdApi.Chat chat, int[] msgsOut, DeepProgress progress) {
         List<Track> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         String chatTitle = chat.title == null ? "" : chat.title;
         if (chat.id == myUserId) chatTitle = "Saved ⭐";
+        Integer photoFileId = chatPhotoFileIds.get(chat.id);
         long from = 0L;
-        int emptyRounds = 0;
         while (true) {
             if (scanCancel) break;
             org.json.JSONObject h;
             try {
-                h = TdClient.syncRaw(new TdApi.GetChatHistory(chat.id, from, 0, 50, false));
+                h = TdClient.syncRaw(new TdApi.GetChatHistory(chat.id, from, 0, 100, false));
             } catch (Exception e) {
                 break;
             }
             org.json.JSONArray arr = h.optJSONArray("messages");
             int n = arr == null ? 0 : arr.length();
+            if (n == 0) break;  // دیگر پیامی نمانده
             msgsOut[0] += n;
             for (RawTrack r : extractAudioRaw(chat.id, h)) {
-                if (seen.add(chat.id + ":" + r.msgId)) out.add(toTrack(r, chatTitle));
+                if (seen.add(chat.id + ":" + r.msgId)) {
+                    Track tt = toTrack(r, chatTitle);
+                    if (photoFileId != null) tt.chatPhotoFileId = photoFileId;
+                    out.add(tt);
+                }
             }
             if (progress != null) progress.onProgress(out.size(), msgsOut[0]);
-            if (msgsOut[0] % 500 == 0) {
-                log("   … " + msgsOut[0] + " پیام، " + out.size() + " فایل");
+            if (msgsOut[0] % 200 == 0) {
+                log("   … «" + chatTitle + "»: " + msgsOut[0] + " پیام، " + out.size() + " فایل");
             }
-            if (n < 50 || arr == null) {
-                emptyRounds++;
-                if (emptyRounds >= 2) break;
-            } else {
-                emptyRounds = 0;
-            }
-            long lastId = arr == null ? 0 : arr.optJSONObject(n - 1).optLong("id");
-            if (lastId == from || lastId == 0) break;
+            long lastId = arr.optJSONObject(n - 1).optLong("id");
+            if (lastId == from || lastId == 0) break;  // سدّ حلقهٔ بی‌نهایت
             from = lastId;
         }
         return out;
     }
 
-    /** اسکن عمیق سیو — ۱۰۰۰ پیام اخیر */
+    /** اسکن عمیق سیو — کل تاریخچهٔ Saved Messages */
     public void deepScanSaved(ScanListener cb) {
+        if (scanning) {
+            Ui.toast(ctx, ctx.getString(R.string.scan_already));
+            cb.onDone(0);
+            return;
+        }
+        scanning = true;
+        scanCancel = false;
         EXEC.execute(() -> {
             try {
                 TdApi.User me = (TdApi.User) TdClient.sync(new TdApi.GetMe());
@@ -1364,7 +1488,6 @@ public final class Tg implements TdClient.UpdateHandler {
                     cb.onDone(0);
                     return;
                 }
-                scanning = true;
                 log("⭐ اسکن عمیق Saved Messages…");
                 int[] msgs = new int[1];
                 List<Track> found = deepHistory(saved, msgs, null);
@@ -1459,7 +1582,7 @@ public final class Tg implements TdClient.UpdateHandler {
     public void download(int fileId, long expectedSize, DownloadListener cb) {
         DownloadTask t = new DownloadTask(cb);
         downloads.put(fileId, t);
-        EXEC.execute(() -> {
+        DL_EXEC.execute(() -> {
             try {
                 org.json.JSONObject f = TdClient.syncRaw(new TdApi.GetFile(fileId));
                 org.json.JSONObject local = f.optJSONObject("local");
@@ -1510,6 +1633,101 @@ public final class Tg implements TdClient.UpdateHandler {
                 }
             }
         });
+    }
+
+    /** کش fileId زندهٔ این نشست — fileId در TDLib بین نشست‌ها عوض می‌شود */
+    private final java.util.Map<String, Integer> liveFileIds = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** رفرش fileId از پیام — برای تراک‌های قدیمی کتابخانه که fileId شان stale شده و «Not Found» می‌دهند */
+    private boolean refreshFileId(Track t) {
+        if (t.chatId == 0 || t.messageId == 0) return false;
+        String key = t.chatId + ":" + t.messageId;
+        Integer cached = liveFileIds.get(key);
+        if (cached != null && cached > 0) {
+            t.fileId = cached;
+            return true;
+        }
+        try {
+            org.json.JSONObject m = TdClient.syncRaw(new TdApi.GetMessage(t.chatId, t.messageId));
+            if (m == null || "error".equals(m.optString("@type"))) return false;
+            org.json.JSONObject content = m.optJSONObject("content");
+            if (content == null) return false;
+            String type = content.optString("@type", "");
+            int fid = 0;
+            long size = 0;
+            org.json.JSONObject f = null;
+            if ("messageAudio".equals(type)) {
+                org.json.JSONObject a = content.optJSONObject("audio");
+                if (a != null) f = a.optJSONObject("audio");
+            } else if ("messageDocument".equals(type)) {
+                org.json.JSONObject d = content.optJSONObject("document");
+                if (d != null) f = d.optJSONObject("document");
+            } else if ("messageVoiceNote".equals(type)) {
+                org.json.JSONObject v = content.optJSONObject("voice_note");
+                if (v != null) f = v.optJSONObject("voice");
+            }
+            if (f != null) {
+                fid = f.optInt("id");
+                size = f.optLong("expected_size", f.optLong("size", 0));
+            }
+            if (fid <= 0) return false;
+            t.fileId = fid;
+            if (size > 0) t.expectedSize = size;
+            liveFileIds.put(key, fid);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * دانلود یک تراک با نمایش زنده در بخش دانلودها — fileId را از پیام تازه می‌گیرد
+     * (ضدِ «Not Found» روی تراک‌های قدیمی کتابخانه).
+     */
+    public void downloadTrack(final Track t, final DownloadListener cb) {
+        DL_EXEC.execute(() -> {
+            // 💥 fileId ممکن است مال نشست قبلی باشد — از پیام، تازه بگیر
+            if (!refreshFileId(t)) {
+                if (cb != null) cb.onError("Not Found");
+                return;
+            }
+            final ActiveDownload ad = new ActiveDownload(t.fileId,
+                    t.title == null || t.title.isEmpty() ? "بی‌نام" : t.title,
+                    t.chatTitle == null ? "" : t.chatTitle, t.expectedSize);
+            activeDownloads.put(t.fileId, ad);
+            notifyDownloadsChanged();
+            download(t.fileId, t.expectedSize, new DownloadListener() {
+                @Override
+                public void onProgress(int pct) {
+                    int before = ad.pct;
+                    ad.pct = pct;
+                    if (cb != null) cb.onProgress(pct);
+                    if (pct != before) notifyDownloadsChanged();
+                }
+
+                @Override
+                public void onDone(String path) {
+                    ad.done = true;
+                    activeDownloads.remove(t.fileId);
+                    notifyDownloadsChanged();
+                    if (cb != null) cb.onDone(path);
+                }
+
+                @Override
+                public void onError(String msg) {
+                    ad.error = true;
+                    activeDownloads.remove(t.fileId);
+                    notifyDownloadsChanged();
+                    if (cb != null) cb.onError(msg);
+                }
+            });
+        });
+    }
+
+    /** لغو دانلود فعال (از بخش دانلودها) — هم دانلود و هم ردیابی‌اش حذف می‌شود */
+    public void cancelDownloadTrack(int fileId) {
+        cancelDownload(fileId);
+        if (activeDownloads.remove(fileId) != null) notifyDownloadsChanged();
     }
 
     public void cancelDownload(int fileId) {

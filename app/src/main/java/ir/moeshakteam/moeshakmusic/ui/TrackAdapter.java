@@ -93,13 +93,6 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.VH> {
 
     public TrackAdapter(OnClick click) {
         this.click = click;
-        setHasStableIds(true); // 🔧 RecyclerView بهینه برای لیست‌های بزرگ
-    }
-
-    @Override
-    public long getItemId(int position) {
-        Track t = shown.get(position);
-        return (t.chatId * 31 + t.messageId);
     }
 
     public void setLongClick(OnLongClick lc) {

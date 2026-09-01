@@ -57,7 +57,7 @@
     <string name="about">درباره</string>
     <string name="made_by">ساخته‌شده با 🚀 توسط تیم موشک</string>
     <string name="visit_site">moeshakteam.ir</string>
-    <string name="version">نسخه ۵.۹.۵</string>
+    <string name="version">نسخه —</string>
     <string name="back">بازگشت</string>
 
     <!-- خطاها و وضعیت‌ها -->
@@ -161,7 +161,15 @@
     <string name="now_playing">در حال پخش از صف</string>
     <string name="tab_all">همه</string>
     <string name="downloads_title">دانلودها</string>
+    <string name="downloads_shortcut">دانلودها — مشاهده و مدیریت</string>
     <string name="downloads_empty">هنوز چیزی دانلود نشده — روی آهنگ لمس طولانی بزن و «دانلود» رو انتخاب کن</string>
+    <string name="downloading_now">در حال دانلود</string>
+    <string name="side_downloads">دانلودها</string>
+    <string name="download_cancel">لغو دانلود</string>
+    <string name="download_cancelled">دانلود لغو شد</string>
+    <string name="channel_tracks_title">آهنگ‌های «%1$s»</string>
+    <string name="channel_tracks_empty">هنوز آهنگی از این چت در کتابخانه نیست — «اسکن عمیق» رو بزن</string>
+    <string name="channel_tracks_count">%1$d آهنگ — برای پخش لمس کن</string>
     <string name="download_channel">دانلود کل کانال</string>
     <string name="channel_all_downloaded">همهٔ موزیک‌های این کانال از قبل دانلود شدن ✓</string>
     <string name="channel_download_started">⬇️ دانلود %1$d موزیک شروع شد — تو لاگ زنده پیشرفتش رو ببین</string>
@@ -239,6 +247,8 @@
     <string name="playlist_renamed">نام پلی‌لیست عوض شد ✓</string>
     <string name="playlist_name_taken">این اسم از قبل هست</string>
     <string name="playlist_empty_toast">این پلی‌لیست خالیه</string>
+    <string name="playlist_tracks_count">%1$d آهنگ — لمس برای پخش، لمس طولانی برای حذف</string>
+    <string name="playlist_remove_confirm">«%1$s» از پلی‌لیست «%2$s» حذف شود؟</string>
     <string name="save_btn">ذخیره</string>
 
     <string name="tab_chats">چت‌ها</string>
@@ -283,4 +293,11 @@
     <string name="followed_card_meta">🔔 %1$d آهنگ دیده‌شده • هر ۱۵ دقیقه چک</string>
     <string name="followed_unfollow_confirm">«%1$s» دنبال نشود؟</string>
     <string name="followed_new_tracks">🆕 آهنگ‌های جدید:</string>
+    <string name="stats_lib">🎵 %1$d موزیک • %2$d چت</string>
+    <string name="stats_lib_empty">کتابخانه خالی است — از تب اسکن شروع کن 🔍</string>
+    <string name="stats_fav">❤️ %1$d فیوریت</string>
+    <string name="stats_fav_empty">هنوز فیوریتی نداری</string>
+    <string name="stats_follow">🔔 %1$d دنبال‌شده • %2$d موزیک دیده‌شده</string>
+    <string name="stats_follow_empty">هنوز چیزی را دنبال نکرده‌ای</string>
+    <string name="scan_status_bar">اسکن: %1$d چت • %2$d موزیک</string>
 </resources>

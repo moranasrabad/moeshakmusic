@@ -196,24 +196,13 @@ public class PlaylistsFragment extends Fragment {
     }
 
     private void openPlaylist(PlaylistStore.Playlist p) {
-        List<Track> tracks = p.tracks;
-        String[] names = new String[tracks.size()];
-        for (int i = 0; i < tracks.size(); i++)
-            names[i] = "🎵 " + tracks.get(i).title + " — " + Ui.fmtDuration(tracks.get(i).duration);
-        new AlertDialog.Builder(requireContext())
-                .setTitle(p.name)
-                .setItems(names, (d, w) -> {
-                    PlayerManager.get(requireContext()).play(tracks, w);
-                    if (requireActivity() instanceof MainActivity)
-                        ((MainActivity) requireActivity()).openPlayer();
-                })
-                .setNeutralButton("پخش همه", (d, w) -> {
-                    PlayerManager.get(requireContext()).play(tracks, 0);
-                    if (requireActivity() instanceof MainActivity)
-                        ((MainActivity) requireActivity()).openPlayer();
-                })
-                .setNegativeButton(R.string.back, null)
-                .show();
+        if (requireActivity() instanceof MainActivity) {
+            PlaylistTracksFragment f = new PlaylistTracksFragment();
+            Bundle b = new Bundle();
+            b.putString(PlaylistTracksFragment.ARG_NAME, p.name);
+            f.setArguments(b);
+            ((MainActivity) requireActivity()).showFullScreen(f);
+        }
     }
 
     static class VH extends RecyclerView.ViewHolder {

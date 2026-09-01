@@ -123,6 +123,10 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
         // نشانگر اتصال/پروکسی — لمس ← صفحهٔ پروکسی
         if (ivConn != null) ivConn.setOnClickListener(x -> showFullScreen(new ProxyFragment()));
 
+        // 📥 دکمهٔ دانلودها کنار پروکسی — مستقیم به تب دانلودها
+        View ivDownloads = findViewById(R.id.ivDownloads);
+        if (ivDownloads != null) ivDownloads.setOnClickListener(x -> openDownloads());
+
         // سرچ — مسیریابی زنده به لیست صفحهٔ فعلی (فیکس: قبلاً tracksFragment همیشه null بود)
         searchBar.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
@@ -247,15 +251,31 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
     }
 
     public void openPlayer() {
-        getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fullScreenContainer, new PlayerFragment())
-                .addToBackStack("player")
-                .commit();
+        try {
+            showFullScreen(new PlayerFragment());
+        } catch (Throwable t) {
+            Tg.log("💥 openPlayer: " + t);
+        }
     }
 
     /** پرش به تب (از منوهای فرگمنت‌های داخل pager) */
     public void openTab(int index) {
         pager.setCurrentItem(index, true);
+    }
+
+    /** 📥 باز کردن تب دانلودها (از صفحهٔ پروکسی و…) — صفحهٔ تمام‌صفحه هم بسته می‌شود */
+    public void openDownloads() {
+        try {
+            View fs = findViewById(R.id.fullScreenContainer);
+            if (fs != null) fs.setVisibility(View.GONE);
+            hideFullScreenContent();
+            if (getSupportFragmentManager().getBackStackEntryCount() > 0)
+                getSupportFragmentManager().popBackStackImmediate();
+            pager.setCurrentItem(PAGE_DOWNLOADS, true);
+            updateMini();
+        } catch (Throwable t) {
+            Tg.log("⚠️ openDownloads: " + t);
+        }
     }
 
     private void updateMini() {
