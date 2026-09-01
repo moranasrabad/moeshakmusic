@@ -16,4 +16,25 @@
         <item name="android:navigationBarColor">@color/moeshak_bg</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
+
+    <style name="MoeshakChip">
+        <item name="android:background">@drawable/chip_bg</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingVertical">9dp</item>
+        <item name="android:layout_marginHorizontal">4dp</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="CircleImg">
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="MoeshakTab" parent="TextAppearance.Design.Tab">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="textAllCaps">true</item>
+        <item name="android:letterSpacing">0.03</item>
+    </style>
 </resources>

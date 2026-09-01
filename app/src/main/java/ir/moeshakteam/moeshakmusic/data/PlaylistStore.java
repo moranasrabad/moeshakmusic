@@ -92,6 +92,15 @@ public final class PlaylistStore {
         sp.edit().remove(name).apply();
     }
 
+    /** تغییر نام پلی‌لیست — false اگر اسم جدید موجود باشد */
+    public boolean rename(String oldName, String newName) {
+        if (oldName.equals(newName) || newName.isEmpty() || sp.contains(newName)) return false;
+        String data = sp.getString(oldName, null);
+        if (data == null) return false;
+        sp.edit().remove(oldName).putString(newName, data).apply();
+        return true;
+    }
+
     /** افزودن تراک به پلی‌لیست (اگر نباشد) — true = اضافه شد */
     public boolean addTrack(String playlistName, Track t) {
         Playlist p = byName(playlistName);

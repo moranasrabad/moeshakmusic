@@ -65,6 +65,34 @@ public class ProxyFragment extends Fragment {
         MaterialButton btnPingAll = v.findViewById(R.id.btnPingAll);
         btnAdd.setOnClickListener(x -> addFromInput());
         btnPingAll.setOnClickListener(x -> pingAll());
+
+        // ⚡ سوییچ خاموش/روشن پروکسی
+        com.google.android.material.materialswitch.MaterialSwitch sw =
+                v.findViewById(R.id.swProxy);
+        Prefs p0 = Prefs.get(requireContext());
+        if (sw == null) return;
+        sw.setChecked(p0.proxyEnabled() && p0.activeProxyIndex() >= 0);
+        sw.setOnCheckedChangeListener((g, on) -> {
+            Prefs p = Prefs.get(requireContext());
+            if (on) {
+                if (p.proxies().isEmpty()) {
+                    sw.setChecked(false);
+                    Ui.toast(requireContext(), R.string.proxy_none_yet);
+                    return;
+                }
+                int idx = p.lastProxyIndex();
+                if (idx < 0 || idx >= p.proxies().size()) idx = 0;
+                p.setActiveProxyIndex(idx);
+                Tg.get(requireContext()).applyProxy();
+                Ui.toast(requireContext(), R.string.proxy_active);
+                refreshList();
+            } else {
+                p.setActiveProxyIndex(-1);
+                Tg.get(requireContext()).applyProxy();
+                Ui.toast(requireContext(), R.string.proxy_disabled);
+                refreshList();
+            }
+        });
     }
 
     private void refreshList() {
@@ -134,7 +162,9 @@ public class ProxyFragment extends Fragment {
     }
 
     private void pingAll() {
-        List<Prefs.ProxyEntry> list = Prefs.get(requireContext()).proxies();
+        // 💥 ضدکرش: کانتکست یک‌بار گرفته شود، thread ها به requireContext دست نزنند
+        android.content.Context appCtx = requireContext().getApplicationContext();
+        List<Prefs.ProxyEntry> list = Prefs.get(appCtx).proxies();
         if (list.isEmpty()) return;
         Ui.toast(requireContext(), getString(R.string.proxy_pinging));
         exec.execute(() -> {
@@ -148,11 +178,12 @@ public class ProxyFragment extends Fragment {
                 } catch (Exception ex) {
                     list.get(idx).pingMs = -2; // خطا
                 }
-                // 🔧 فیکس: نتیجه پینگ باید ذخیره بشه وگرنه رفرش، مقادیر قدیمی رو نشون می‌داد
-                Prefs.get(requireContext()).saveProxies(list);
+                Prefs.get(appCtx).saveProxies(list);
                 main.post(this::refreshList);
             }
-            main.post(() -> Ui.toast(requireContext(), getString(R.string.proxy_ping_done)));
+            main.post(() -> {
+                if (isAdded()) Ui.toast(requireContext(), getString(R.string.proxy_ping_done));
+            });
         });
     }
 
@@ -181,6 +212,7 @@ public class ProxyFragment extends Fragment {
         list.get(idx).pingMs = -3; // در حال تست
         Prefs.get(requireContext()).saveProxies(list);
         refreshList();
+        final android.content.Context appCtx = requireContext().getApplicationContext();
         exec.execute(() -> {
             try {
                 Prefs.ProxyEntry e = list.get(idx);
@@ -190,7 +222,7 @@ public class ProxyFragment extends Fragment {
             } catch (Exception ex) {
                 list.get(idx).pingMs = -2;
             }
-            Prefs.get(requireContext()).saveProxies(list);
+            Prefs.get(appCtx).saveProxies(list);
             main.post(this::refreshList);
         });
     }
