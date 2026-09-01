@@ -61,12 +61,6 @@ public class ProxyFragment extends Fragment {
         v.findViewById(R.id.btnBack).setOnClickListener(x ->
                 requireActivity().onBackPressed());
 
-        // 📥 میان‌بر به بخش دانلودها (به‌جای نمایش فایل‌های در حال دانلود اینجا)
-        View btnDl = v.findViewById(R.id.btnDownloads);
-        if (btnDl != null) btnDl.setOnClickListener(x -> {
-            if (getActivity() instanceof MainActivity) ((MainActivity) getActivity()).openDownloads();
-        });
-
         MaterialButton btnAdd = v.findViewById(R.id.btnAdd);
         MaterialButton btnPingAll = v.findViewById(R.id.btnPingAll);
         btnAdd.setOnClickListener(x -> addFromInput());

@@ -123,6 +123,10 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
         // نشانگر اتصال/پروکسی — لمس ← صفحهٔ پروکسی
         if (ivConn != null) ivConn.setOnClickListener(x -> showFullScreen(new ProxyFragment()));
 
+        // 📥 دکمهٔ دانلودها کنار پروکسی — مستقیم به تب دانلودها
+        View ivDownloads = findViewById(R.id.ivDownloads);
+        if (ivDownloads != null) ivDownloads.setOnClickListener(x -> openDownloads());
+
         // سرچ — مسیریابی زنده به لیست صفحهٔ فعلی (فیکس: قبلاً tracksFragment همیشه null بود)
         searchBar.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override

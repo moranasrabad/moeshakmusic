@@ -79,6 +79,13 @@ public final class Tg implements TdClient.UpdateHandler {
         return t;
     });
 
+    /** ترد جدا برای دانلود — پشت اسکن/چک‌فالو گیر نکند */
+    private static final ExecutorService DL_EXEC = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "TgDownload");
+        t.setDaemon(true);
+        return t;
+    });
+
     private static Tg inst;
 
     private final Context ctx;
@@ -870,24 +877,15 @@ public final class Tg implements TdClient.UpdateHandler {
 
     /** افزودن تراک‌های بدون تکرار به مقصد — تعداد اضافه‌شده */
     private int mergeNew(List<Track> buffer, List<Track> target) {
+        // O(n) با HashSet — قبلاً O(n²) بود و با کتابخانهٔ بزرگ (هزاران تراک) UI/اسکن را قفل می‌کرد
+        java.util.Set<String> existing = new java.util.HashSet<>();
+        for (Track t : library) existing.add(t.chatId + ":" + t.messageId);
+        if (target != library) {
+            for (Track t : scanResults) existing.add(t.chatId + ":" + t.messageId);
+        }
         int added = 0;
         for (Track t : buffer) {
-            boolean isNew = true;
-            for (Track ex : library) {
-                if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
-                    isNew = false;
-                    break;
-                }
-            }
-            if (isNew && target != library) {
-                for (Track ex : scanResults) {
-                    if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
-                        isNew = false;
-                        break;
-                    }
-                }
-            }
-            if (isNew) {
+            if (existing.add(t.chatId + ":" + t.messageId)) {
                 target.add(t);
                 added++;
             }
@@ -1584,7 +1582,7 @@ public final class Tg implements TdClient.UpdateHandler {
     public void download(int fileId, long expectedSize, DownloadListener cb) {
         DownloadTask t = new DownloadTask(cb);
         downloads.put(fileId, t);
-        EXEC.execute(() -> {
+        DL_EXEC.execute(() -> {
             try {
                 org.json.JSONObject f = TdClient.syncRaw(new TdApi.GetFile(fileId));
                 org.json.JSONObject local = f.optJSONObject("local");
@@ -1637,40 +1635,92 @@ public final class Tg implements TdClient.UpdateHandler {
         });
     }
 
+    /** کش fileId زندهٔ این نشست — fileId در TDLib بین نشست‌ها عوض می‌شود */
+    private final java.util.Map<String, Integer> liveFileIds = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** رفرش fileId از پیام — برای تراک‌های قدیمی کتابخانه که fileId شان stale شده و «Not Found» می‌دهند */
+    private boolean refreshFileId(Track t) {
+        if (t.chatId == 0 || t.messageId == 0) return false;
+        String key = t.chatId + ":" + t.messageId;
+        Integer cached = liveFileIds.get(key);
+        if (cached != null && cached > 0) {
+            t.fileId = cached;
+            return true;
+        }
+        try {
+            org.json.JSONObject m = TdClient.syncRaw(new TdApi.GetMessage(t.chatId, t.messageId));
+            if (m == null || "error".equals(m.optString("@type"))) return false;
+            org.json.JSONObject content = m.optJSONObject("content");
+            if (content == null) return false;
+            String type = content.optString("@type", "");
+            int fid = 0;
+            long size = 0;
+            org.json.JSONObject f = null;
+            if ("messageAudio".equals(type)) {
+                org.json.JSONObject a = content.optJSONObject("audio");
+                if (a != null) f = a.optJSONObject("audio");
+            } else if ("messageDocument".equals(type)) {
+                org.json.JSONObject d = content.optJSONObject("document");
+                if (d != null) f = d.optJSONObject("document");
+            } else if ("messageVoiceNote".equals(type)) {
+                org.json.JSONObject v = content.optJSONObject("voice_note");
+                if (v != null) f = v.optJSONObject("voice");
+            }
+            if (f != null) {
+                fid = f.optInt("id");
+                size = f.optLong("expected_size", f.optLong("size", 0));
+            }
+            if (fid <= 0) return false;
+            t.fileId = fid;
+            if (size > 0) t.expectedSize = size;
+            liveFileIds.put(key, fid);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     /**
-     * دانلود یک تراک با نمایش زنده در بخش دانلودها — همون download() ولی با
-     * ثبت metadata (عنوان/چت) و به‌روزرسانی UI از طریق onDownloadsChanged.
+     * دانلود یک تراک با نمایش زنده در بخش دانلودها — fileId را از پیام تازه می‌گیرد
+     * (ضدِ «Not Found» روی تراک‌های قدیمی کتابخانه).
      */
-    public void downloadTrack(Track t, DownloadListener cb) {
-        final ActiveDownload ad = new ActiveDownload(t.fileId,
-                t.title == null || t.title.isEmpty() ? "بی‌نام" : t.title,
-                t.chatTitle == null ? "" : t.chatTitle, t.expectedSize);
-        activeDownloads.put(t.fileId, ad);
-        notifyDownloadsChanged();
-        download(t.fileId, t.expectedSize, new DownloadListener() {
-            @Override
-            public void onProgress(int pct) {
-                int before = ad.pct;
-                ad.pct = pct;
-                if (cb != null) cb.onProgress(pct);
-                if (pct != before) notifyDownloadsChanged();
+    public void downloadTrack(final Track t, final DownloadListener cb) {
+        DL_EXEC.execute(() -> {
+            // 💥 fileId ممکن است مال نشست قبلی باشد — از پیام، تازه بگیر
+            if (!refreshFileId(t)) {
+                if (cb != null) cb.onError("Not Found");
+                return;
             }
+            final ActiveDownload ad = new ActiveDownload(t.fileId,
+                    t.title == null || t.title.isEmpty() ? "بی‌نام" : t.title,
+                    t.chatTitle == null ? "" : t.chatTitle, t.expectedSize);
+            activeDownloads.put(t.fileId, ad);
+            notifyDownloadsChanged();
+            download(t.fileId, t.expectedSize, new DownloadListener() {
+                @Override
+                public void onProgress(int pct) {
+                    int before = ad.pct;
+                    ad.pct = pct;
+                    if (cb != null) cb.onProgress(pct);
+                    if (pct != before) notifyDownloadsChanged();
+                }
 
-            @Override
-            public void onDone(String path) {
-                ad.done = true;
-                activeDownloads.remove(t.fileId);
-                notifyDownloadsChanged();
-                if (cb != null) cb.onDone(path);
-            }
+                @Override
+                public void onDone(String path) {
+                    ad.done = true;
+                    activeDownloads.remove(t.fileId);
+                    notifyDownloadsChanged();
+                    if (cb != null) cb.onDone(path);
+                }
 
-            @Override
-            public void onError(String msg) {
-                ad.error = true;
-                activeDownloads.remove(t.fileId);
-                notifyDownloadsChanged();
-                if (cb != null) cb.onError(msg);
-            }
+                @Override
+                public void onError(String msg) {
+                    ad.error = true;
+                    activeDownloads.remove(t.fileId);
+                    notifyDownloadsChanged();
+                    if (cb != null) cb.onError(msg);
+                }
+            });
         });
     }
 

@@ -76,56 +76,6 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- 📥 میان‌بر به بخش دانلودها -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/btnDownloads"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="12dp"
-        android:layout_marginTop="10dp"
-        android:clickable="true"
-        android:focusable="true"
-        app:cardBackgroundColor="@color/moeshak_elevated"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="0dp"
-        app:rippleColor="?attr/colorPrimary"
-        app:strokeColor="@color/moeshak_outline"
-        app:strokeWidth="1dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="12dp">
-
-            <ImageView
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:contentDescription="@string/tab_downloads"
-                android:src="@drawable/ic_download"
-                app:tint="?attr/colorPrimary" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_weight="1"
-                android:text="@string/downloads_shortcut"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_next"
-                app:tint="?attr/colorOnSurfaceVariant" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
-
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler"
         android:layout_width="match_parent"
