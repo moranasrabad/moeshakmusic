@@ -37,6 +37,7 @@ public class TracksFragment extends Fragment {
     // ---------- انتخاب گروهی ----------
     private View selectionBar;
     private TextView tvSelCount;
+    private Runnable libHook;
 
     @Nullable
     @Override
@@ -103,11 +104,12 @@ public class TracksFragment extends Fragment {
             swipe.setRefreshing(false);
         });
 
-        // هوک رفرش زنده — بعد از اسکن/بازیابی
-        Tg.get(requireContext()).onLibraryChanged = () -> {
-            if (TracksFragment.liveTracks != null) TracksFragment.liveTracks.refresh();
-            if (TracksFragment.liveFavs != null) TracksFragment.liveFavs.refresh();
+        // هوک رفرش زنده — بعد از اسکن/بازیابی (✅ v6.0.1: هوک مستقل،
+        // فرگمنت‌های دیگر آن را بازنویسی نمی‌کنند)
+        libHook = () -> {
+            if (isAdded()) refresh();
         };
+        Tg.get(requireContext()).addLibraryHook(libHook);
 
         refresh();
         if (favOnly) liveFavs = this;
@@ -122,6 +124,7 @@ public class TracksFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
+        if (libHook != null) Tg.get(requireContext()).removeLibraryHook(libHook);
         if (liveFavs == this) liveFavs = null;
         if (liveTracks == this) liveTracks = null;
         super.onDestroyView();

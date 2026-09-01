@@ -37,6 +37,7 @@ public class FollowedFragment extends Fragment {
     private TrackAdapter adapter;
     private RecyclerView recycler;
     private View empty;
+    private Runnable hook;
     private final Handler main = new Handler(Looper.getMainLooper());
 
     @Nullable
@@ -69,9 +70,11 @@ public class FollowedFragment extends Fragment {
             Tg.get(requireContext()).checkFollowed(ok -> main.post(this::refreshSafe));
         });
 
-        // هوک رفرش زنده
-        Tg.get(requireContext()).onFollowedUpdate = this::refreshSafe;
-        Tg.get(requireContext()).onLibraryChanged = this::refreshSafe;
+        // هوک رفرش زنده — ✅ v6.0.1: مستقل، هوک TracksFragment را پاک نمی‌کند
+        Tg tg = Tg.get(requireContext());
+        hook = this::refreshSafe;
+        tg.addFollowedHook(hook);
+        tg.addLibraryHook(hook);
 
         // پایش دوره‌ای
         startPeriodicCheck();
@@ -101,6 +104,16 @@ public class FollowedFragment extends Fragment {
     public void onResume() {
         super.onResume();
         refresh();
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (hook != null) {
+            Tg tg = Tg.get(requireContext());
+            tg.removeFollowedHook(hook);
+            tg.removeLibraryHook(hook);
+        }
+        super.onDestroyView();
     }
 
     private void refresh() {

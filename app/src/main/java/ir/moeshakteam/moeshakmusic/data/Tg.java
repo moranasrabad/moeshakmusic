@@ -147,6 +147,12 @@ public final class Tg implements TdClient.UpdateHandler {
     private volatile boolean restored;
     /** هوک UI — بعد از تغییر کتابخانه صدا زده می‌شود */
     public volatile Runnable onLibraryChanged;
+    /** ✅ v6.0.1: هوک‌های متعدد کتابخانه — چند فرگمنت هم‌زمان رفرش شوند (قبلاً
+     *  FollowedFragment هوک TracksFragment را بازنویسی می‌کرد و TRACKS زنده نمی‌شد) */
+    public final List<Runnable> libraryHooks = new CopyOnWriteArrayList<>();
+
+    public void addLibraryHook(Runnable r) { libraryHooks.add(r); }
+    public void removeLibraryHook(Runnable r) { libraryHooks.remove(r); }
     /** شنونده‌های پیشرفت اسکن عمیق (UI) */
     public final List<ScanListener> deepListeners = new CopyOnWriteArrayList<>();
 
@@ -645,7 +651,9 @@ public final class Tg implements TdClient.UpdateHandler {
 
     /** اسکن دستی: از چت from به بعد، count تا چت — نتایج به scanResults می‌روند (جدا از کتابخانه) */
     public void scanRange(int from, int count, ScanListener cb) {
-        scanRange(from, count, cb, true);
+        // ✅ v6.0.1: اسکن دستی حتماً به بخش SCAN می‌رود (قبلاً اشتباهی مستقیم به library
+        // می‌رفت و در نتیجه دکمهٔ «افزودن به کتابخانه» کاری نمی‌کرد و TRACKS هم به‌روز نمی‌شد)
+        scanRange(from, count, cb, false);
     }
 
     /**
@@ -744,13 +752,23 @@ public final class Tg implements TdClient.UpdateHandler {
         int added = 0;
         for (Track t : buffer) {
             boolean isNew = true;
-            for (Track ex : library) {
+            // ✅ v6.0.1: اول خودِ مقصد چک شود (قبلاً همیشه library چک می‌شد و وقتی
+            // خود target برابر scanResults بود یا buffer تکرار داشت، شمارش اشتباه می‌شد)
+            for (Track ex : target) {
                 if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
                     isNew = false;
                     break;
                 }
             }
             if (isNew && target != library) {
+                for (Track ex : library) {
+                    if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
+                        isNew = false;
+                        break;
+                    }
+                }
+            }
+            if (isNew && target != scanResults) {
                 for (Track ex : scanResults) {
                     if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
                         isNew = false;
@@ -809,13 +827,14 @@ public final class Tg implements TdClient.UpdateHandler {
         return "📚 " + lib + " در کتابخانه • ❤️ " + favs + " فیوریت • 🔔 " + fol + " جدید فالو • ⬇️ " + dl + " دانلود";
     }
 
-    /** هوک UI بعد از تغییر کتابخانه */
+    /** هوک UI بعد از تغییر کتابخانه — همهٔ شنونده‌ها (TRACKS + FOLLOWED + …) */
     private void notifyLibraryChanged() {
         log("📊 " + libraryStats());
-        Runnable r = onLibraryChanged;
-        if (r != null) {
-            new android.os.Handler(android.os.Looper.getMainLooper()).post(r);
-        }
+        final List<Runnable> hooks = new ArrayList<>(libraryHooks);
+        Runnable legacy = onLibraryChanged;
+        if (legacy != null) hooks.add(legacy);
+        android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+        for (Runnable r : hooks) h.post(r);
     }
 
     // ---------- ذخیرهٔ دائمی: فقط فیوریت‌ها (+ پلی‌لیست‌ها در PlaylistStore) ----------
@@ -952,6 +971,11 @@ public final class Tg implements TdClient.UpdateHandler {
     public final List<Track> followedResults = new CopyOnWriteArrayList<>();
     /** هوک UI بعد از هر چک */
     public volatile Runnable onFollowedUpdate;
+    /** ✅ v6.0.1: هوک‌های متعدد چک فالو */
+    public final List<Runnable> followedHooks = new CopyOnWriteArrayList<>();
+
+    public void addFollowedHook(Runnable r) { followedHooks.add(r); }
+    public void removeFollowedHook(Runnable r) { followedHooks.remove(r); }
 
     public interface FollowDone { void onDone(boolean foundNew); }
 
@@ -1054,8 +1078,11 @@ public final class Tg implements TdClient.UpdateHandler {
                         log("🎵 جدید از «" + chTitle + "»: " + newOnes.size());
                     }
                 }
-                Runnable r = onFollowedUpdate;
-                if (r != null) new android.os.Handler(android.os.Looper.getMainLooper()).post(r);
+                final List<Runnable> fHooks = new ArrayList<>(followedHooks);
+                Runnable fLegacy = onFollowedUpdate;
+                if (fLegacy != null) fHooks.add(fLegacy);
+                android.os.Handler fh = new android.os.Handler(android.os.Looper.getMainLooper());
+                for (Runnable r : fHooks) fh.post(r);
             } catch (Exception e) {
                 log("⚠️ چک دنبال‌شده: " + e.getMessage());
             } finally {

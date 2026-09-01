@@ -1,0 +1,51 @@
+name: Windows Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach installers to'
+        default: 'v6.0.0'
+  push:
+    branches: [main]
+    paths:
+      - 'windows/**'
+      - '.github/workflows/windows.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: windows/package-lock.json
+
+      - name: Install dependencies
+        working-directory: windows
+        run: npm ci
+
+      - name: Build Windows installers
+        working-directory: windows
+        run: npx electron-builder --win nsis portable --publish never
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moeshak-windows
+          path: |
+            windows/dist/*.exe
+
+      - name: Attach to GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ github.event.inputs.tag }}"
+          if ([string]::IsNullOrEmpty($tag)) { $tag = "v6.0.0" }
+          gh release upload $tag windows/dist/*.exe --clobber
