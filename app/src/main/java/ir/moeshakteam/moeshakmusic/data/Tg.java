@@ -72,6 +72,13 @@ public final class Tg implements TdClient.UpdateHandler {
         return t;
     });
 
+    /** ترد جدا برای عملیات پروکسی — پشت صف اسکن گیر نکند */
+    private static final ExecutorService PROXY_EXEC = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "TgProxy");
+        t.setDaemon(true);
+        return t;
+    });
+
     private static Tg inst;
 
     private final Context ctx;
@@ -232,29 +239,84 @@ public final class Tg implements TdClient.UpdateHandler {
         setAuth(Auth.LOADING, null);
     }
 
-    /** اعمال پروکسی MTProto (اگه در تنظیمات فعال باشه) */
+    /** آخرین پروکسیِ اعمال‌شده (proxyId در TDLib + امضای آدرس) — ضدِ AddProxy تکراری */
+    private volatile int appliedProxyId = -1;
+    private volatile String appliedProxySig = "";
+
+    /** اعمال پروکسی MTProto (اگه در تنظیمات فعال باشه) — بدون AddProxy تکراری و ری‌استارت اتصال */
     public void applyProxy() {
-        if (prefs.proxyEnabled() && !prefs.proxyServer().trim().isEmpty()) {
-            log("📶 اعمال پروکسی: " + prefs.proxyServer() + ":" + prefs.proxyPort());
+        PROXY_EXEC.execute(() -> {
             try {
-                TdApi.Proxy p = new TdApi.Proxy(
-                        prefs.proxyServer().trim(),
-                        Integer.parseInt(prefs.proxyPort().trim().isEmpty() ? "443" : prefs.proxyPort().trim()),
-                        new TdApi.ProxyTypeMtproto(prefs.proxySecret().trim()));
-                TdClient.send(new TdApi.AddProxy(p, true, "moeshak"), r -> {
-                    if (r instanceof TdApi.Error) {
-                        Ui.toast(ctx, ctx.getString(R.string.proxy_bad));
-                    } else {
-                        Ui.toast(ctx, ctx.getString(R.string.proxy_active));
+                if (prefs.proxyEnabled() && !prefs.proxyServer().trim().isEmpty()) {
+                    String server = prefs.proxyServer().trim();
+                    String secret = prefs.proxySecret().trim();
+                    int port;
+                    try {
+                        port = Integer.parseInt(prefs.proxyPort().trim().isEmpty() ? "443" : prefs.proxyPort().trim());
+                    } catch (Exception e) {
+                        port = 443;
                     }
-                });
-            } catch (Exception e) {
-                Ui.toast(ctx, ctx.getString(R.string.proxy_bad));
+                    if (server.isEmpty() || secret.isEmpty()) {
+                        disableProxy();
+                        return;
+                    }
+                    String sig = server + ":" + port + ":" + secret;
+                    if (sig.equals(appliedProxySig) && appliedProxyId > 0) {
+                        // همین پروکسی قبلاً اضافه شده — فقط فعالش کن (بدون قطع‌ووصل دوباره)
+                        TdClient.send(new TdApi.EnableProxy(appliedProxyId), r -> {});
+                        return;
+                    }
+                    // بگرد ببین قبلاً اضافه شده؟ (جلوگیری از انباشت پروکسی تکراری در TDLib)
+                    int existing = (auth == Auth.READY) ? findProxyId(server, port, secret) : 0;
+                    if (existing > 0) {
+                        appliedProxyId = existing;
+                        appliedProxySig = sig;
+                        TdClient.send(new TdApi.EnableProxy(existing), r -> {});
+                        return;
+                    }
+                    log("📶 اعمال پروکسی: " + server + ":" + port);
+                    TdApi.Proxy p = new TdApi.Proxy(server, port, new TdApi.ProxyTypeMtproto(secret));
+                    TdClient.send(new TdApi.AddProxy(p, true, "moeshak"), r -> {
+                        if (r instanceof TdApi.Error) {
+                            Ui.toast(ctx, ctx.getString(R.string.proxy_bad));
+                        } else if (r instanceof TdApi.AddedProxy) {
+                            appliedProxyId = ((TdApi.AddedProxy) r).id;
+                            appliedProxySig = sig;
+                            Ui.toast(ctx, ctx.getString(R.string.proxy_active));
+                        }
+                    });
+                } else {
+                    disableProxy();
+                }
+            } catch (Throwable ignored) {
             }
-        } else {
-            TdClient.send(new TdApi.DisableProxy(), r -> {
-            });
+        });
+    }
+
+    private void disableProxy() {
+        appliedProxyId = -1;
+        appliedProxySig = "";
+        TdClient.send(new TdApi.DisableProxy(), r -> {});
+    }
+
+    /** پیدا کردن proxy_id یک پروکسیِ از قبل اضافه‌شده با همین آدرس */
+    private int findProxyId(String server, int port, String secret) {
+        try {
+            TdApi.AddedProxies aps = (TdApi.AddedProxies) TdClient.sync(new TdApi.GetProxies());
+            if (aps == null || aps.proxies == null) return 0;
+            for (TdApi.AddedProxy ap : aps.proxies) {
+                if (ap == null || ap.proxy == null) continue;
+                if (!server.equals(ap.proxy.server)) continue;
+                if (ap.proxy.port != port) continue;
+                if (ap.proxy.type instanceof TdApi.ProxyTypeMtproto) {
+                    String sec = ((TdApi.ProxyTypeMtproto) ap.proxy.type).secret;
+                    if (secret.equals(sec == null ? "" : sec)) return ap.id;
+                }
+            }
+        } catch (Exception e) {
+            // قبل از READY یا هنگام خطا — بی‌خیال، AddProxy تازه می‌زنیم
         }
+        return 0;
     }
 
     // ---------- آپدیت‌های TDLib ----------

@@ -259,6 +259,21 @@ public class MainActivity extends AppCompatActivity implements Tg.AuthListener {
         pager.setCurrentItem(index, true);
     }
 
+    /** 📥 باز کردن تب دانلودها (از صفحهٔ پروکسی و…) — صفحهٔ تمام‌صفحه هم بسته می‌شود */
+    public void openDownloads() {
+        try {
+            View fs = findViewById(R.id.fullScreenContainer);
+            if (fs != null) fs.setVisibility(View.GONE);
+            hideFullScreenContent();
+            if (getSupportFragmentManager().getBackStackEntryCount() > 0)
+                getSupportFragmentManager().popBackStackImmediate();
+            pager.setCurrentItem(PAGE_DOWNLOADS, true);
+            updateMini();
+        } catch (Throwable t) {
+            Tg.log("⚠️ openDownloads: " + t);
+        }
+    }
+
     private void updateMini() {
         Track t = PlayerManager.get(this).current();
         if (t == null) {

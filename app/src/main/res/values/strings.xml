@@ -161,6 +161,7 @@
     <string name="now_playing">در حال پخش از صف</string>
     <string name="tab_all">همه</string>
     <string name="downloads_title">دانلودها</string>
+    <string name="downloads_shortcut">دانلودها — مشاهده و مدیریت</string>
     <string name="downloads_empty">هنوز چیزی دانلود نشده — روی آهنگ لمس طولانی بزن و «دانلود» رو انتخاب کن</string>
     <string name="downloading_now">در حال دانلود</string>
     <string name="side_downloads">دانلودها</string>

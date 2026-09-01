@@ -7,8 +7,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.TextView;
 
@@ -42,9 +40,6 @@ public class ProxyFragment extends Fragment {
     private TextInputEditText etAdd;
     private TextView empty;
     private RecyclerView recycler;
-    private LinearLayout activeList;
-    private TextView dlHeader;
-    private final Runnable dlHook = this::renderActive;
 
     @Nullable
     @Override
@@ -58,17 +53,19 @@ public class ProxyFragment extends Fragment {
         recycler = v.findViewById(R.id.recycler);
         empty = v.findViewById(R.id.empty);
         etAdd = v.findViewById(R.id.etAdd);
-        activeList = v.findViewById(R.id.activeList);
-        dlHeader = v.findViewById(R.id.dlHeader);
         adapter = new ProxyAdapter();
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         recycler.setAdapter(adapter);
         refreshList();
-        renderActive();
-        Tg.get(requireContext()).addDownloadsListener(dlHook);
 
         v.findViewById(R.id.btnBack).setOnClickListener(x ->
                 requireActivity().onBackPressed());
+
+        // 📥 میان‌بر به بخش دانلودها (به‌جای نمایش فایل‌های در حال دانلود اینجا)
+        View btnDl = v.findViewById(R.id.btnDownloads);
+        if (btnDl != null) btnDl.setOnClickListener(x -> {
+            if (getActivity() instanceof MainActivity) ((MainActivity) getActivity()).openDownloads();
+        });
 
         MaterialButton btnAdd = v.findViewById(R.id.btnAdd);
         MaterialButton btnPingAll = v.findViewById(R.id.btnPingAll);
@@ -112,50 +109,8 @@ public class ProxyFragment extends Fragment {
         empty.setVisibility(adapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
     }
 
-    /** دانلودهای فعال کنار تنظیمات پروکسی — پیشرفت زنده + لغو */
-    private void renderActive() {
-        if (activeList == null || !isAdded()) return;
-        List<Tg.ActiveDownload> actives = Tg.get(requireContext()).activeDownloads();
-        activeList.removeAllViews();
-        if (dlHeader != null) {
-            dlHeader.setVisibility(actives.isEmpty() ? View.GONE : View.VISIBLE);
-        }
-        for (Tg.ActiveDownload ad : actives) {
-            View row = LayoutInflater.from(requireContext())
-                    .inflate(R.layout.item_active_download, activeList, false);
-            TextView tvTitle = row.findViewById(R.id.tvTitle);
-            TextView tvSub = row.findViewById(R.id.tvSub);
-            ProgressBar bar = row.findViewById(R.id.progress);
-            ImageButton btnCancel = row.findViewById(R.id.btnCancel);
-
-            if (tvTitle != null) tvTitle.setText(ad.title);
-            if (tvSub != null) {
-                tvSub.setText(ad.chatTitle == null || ad.chatTitle.isEmpty()
-                        ? getString(R.string.downloading, ad.pct < 0 ? 0 : ad.pct)
-                        : ad.chatTitle + " • " + getString(R.string.downloading, ad.pct < 0 ? 0 : ad.pct));
-            }
-            if (bar != null) {
-                if (ad.pct >= 0) {
-                    bar.setIndeterminate(false);
-                    bar.setProgress(ad.pct);
-                } else {
-                    bar.setIndeterminate(true);
-                }
-            }
-            if (btnCancel != null) {
-                btnCancel.setOnClickListener(x -> {
-                    Tg.get(requireContext()).cancelDownloadTrack(ad.fileId);
-                    Ui.toast(requireContext(), R.string.download_cancelled);
-                    renderActive();
-                });
-            }
-            activeList.addView(row);
-        }
-    }
-
     @Override
     public void onDestroyView() {
-        Tg.get(requireContext()).removeDownloadsListener(dlHook);
         super.onDestroyView();
     }
 
