@@ -88,11 +88,13 @@ public class FollowedFragment extends Fragment {
                 if (!isAdded()) return;
                 Tg.get(requireContext()).checkFollowed(ok -> main.post(() -> {
                     refreshSafe();
-                    if (isAdded()) main.postDelayed(this, 15 * 60 * 1000L);
+                    // ✅ v6.0.2: چک دوره‌ای سبک‌تر — ۳۰ دقیقه (قبلاً ۱۵ دقیقه، روی اکانت‌های
+                    // سنگین مدام دیپ‌اسکن تمام‌تاریخچه اجرا می‌کرد و اپ را کند می‌کرد)
+                    if (isAdded()) main.postDelayed(this, 30 * 60 * 1000L);
                 }));
             }
         };
-        main.postDelayed(loop, 30_000);
+        main.postDelayed(loop, 2 * 60 * 1000L);
     }
 
     private void refreshSafe() {

@@ -675,6 +675,7 @@ public final class Tg implements TdClient.UpdateHandler {
             int chats = 0;
             int files = 0;
             List<Track> buffer = new ArrayList<>();
+            java.util.Set<String> bufKeys = new HashSet<>();
             try {
                 log("🚀 اسکن v2 شروع شد (موتور تاریخچهٔ مستقیم) → " + (toLibrary ? "کتابخانه" : "بخش اسکن"));
                 List<TdApi.Chat> all = loadAllChats();
@@ -706,14 +707,10 @@ public final class Tg implements TdClient.UpdateHandler {
                     files += found.size();
                     log("[" + (i + 1) + "/" + end + "] «" + title + "» → " + msgs[0] + " پیام، " + found.size() + " فایل صوتی");
                     for (Track t : found) {
-                        boolean isNew = true;
-                        for (Track ex : buffer) {
-                            if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
-                                isNew = false;
-                                break;
-                            }
-                        }
-                        if (isNew) buffer.add(t);
+                        // ✅ v6.0.2: دیتاچک داخل‌بافر با HashSet (قبلاً O(buffer²) بود و کند می‌کرد)
+                        String key = t.chatId + ":" + t.messageId;
+                        if (!bufKeys.add(key)) continue;
+                        buffer.add(t);
                     }
                     chats++;
                     scannedChats = chats;
@@ -747,41 +744,24 @@ public final class Tg implements TdClient.UpdateHandler {
         });
     }
 
-    /** افزودن تراک‌های بدون تکرار به مقصد — تعداد اضافه‌شده */
+    /**
+     * افزودن تراک‌های بدون تکرار به مقصد — تعداد اضافه‌شده.
+     * ✅ v6.0.2: با HashSet (O(n)) — نسخهٔ قبلی O(n²) روی CopyOnWriteArrayList بود و
+     * روی هزاران تراک، اپ را به‌شدت کند می‌کرد. فقط خودِ مقصد چک می‌شود؛ این یعنی
+     * موقع انتقال نتایج اسکن به کتابخانه، هر تراکی که در کتابخانه نیست واقعاً منتقل می‌شود.
+     */
     private int mergeNew(List<Track> buffer, List<Track> target) {
-        int added = 0;
+        java.util.Set<String> targetKeys = new HashSet<>();
+        for (Track ex : target) targetKeys.add(ex.chatId + ":" + ex.messageId);
+        List<Track> toAdd = new ArrayList<>();
+        java.util.Set<String> addedKeys = new HashSet<>();
         for (Track t : buffer) {
-            boolean isNew = true;
-            // ✅ v6.0.1: اول خودِ مقصد چک شود (قبلاً همیشه library چک می‌شد و وقتی
-            // خود target برابر scanResults بود یا buffer تکرار داشت، شمارش اشتباه می‌شد)
-            for (Track ex : target) {
-                if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
-                    isNew = false;
-                    break;
-                }
-            }
-            if (isNew && target != library) {
-                for (Track ex : library) {
-                    if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
-                        isNew = false;
-                        break;
-                    }
-                }
-            }
-            if (isNew && target != scanResults) {
-                for (Track ex : scanResults) {
-                    if (ex.chatId == t.chatId && ex.messageId == t.messageId) {
-                        isNew = false;
-                        break;
-                    }
-                }
-            }
-            if (isNew) {
-                target.add(t);
-                added++;
-            }
+            String k = t.chatId + ":" + t.messageId;
+            if (targetKeys.contains(k) || !addedKeys.add(k)) continue;
+            toAdd.add(t);
         }
-        return added;
+        if (!toAdd.isEmpty()) target.addAll(toAdd);
+        return toAdd.size();
     }
 
     private void sortNewestFirst(List<Track> list) {

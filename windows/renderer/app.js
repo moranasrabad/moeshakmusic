@@ -560,7 +560,7 @@ function renderChannels() {
   const body = $('#tabBody')
   if (!S.channels.length) { body.innerHTML = `<div class="empty">${t('empty')}</div>`; return }
   body.innerHTML = S.channels.map(c => `
-    <div class="chat-row">
+    <div class="chat-row" data-cid="${c.id}">
       <div class="chat-avatar" style="background-image:url('${artUrl(c.photoFileId)}')">${c.photoFileId ? '' : esc((c.title || '?')[0])}</div>
       <div class="track-meta">
         <div class="track-title">${esc(c.title)}</div>
@@ -572,16 +572,16 @@ function renderChannels() {
         <button class="ic" data-act="dl" title="${t('downloadAll')}">⬇</button>
       </div>
     </div>`).join('')
-  body.querySelectorAll('.chat-row').forEach((row, i) => {
-    const c = S.channels[i]
-    const folBtn = row.querySelector('[data-act=follow]')
-    if (folBtn) folBtn.onclick = async () => {
-      if ((S.followed||[]).some(f => f.chatId === c.id)) {
-        await api.invoke('follow.remove', { chatId: c.id })
+  body.querySelectorAll('.chat-row').forEach(row => {
+    const cid = parseInt(row.dataset.cid, 10)
+    const c = S.channels.find(x => x.id === cid)
+    row.querySelector('[data-act=follow]').onclick = async () => {
+      if ((S.followed||[]).some(f => f.chatId === cid)) {
+        await api.invoke('follow.remove', { chatId: cid })
         toast('✓ ' + t('unfollow'))
       } else {
         toast('🔔 ' + c.title)
-        await api.invoke('follow.add', { chatId: c.id, title: c.title })
+        await api.invoke('follow.add', { chatId: cid, title: c.title })
         toast('✓ ' + t('follow'))
       }
       S.followed = await api.invoke('follow.list')
@@ -589,14 +589,15 @@ function renderChannels() {
     }
     row.querySelector('[data-act=scan]').onclick = async () => {
       toast('🔍 ' + c.title)
-      const res = await api.invoke('scan.start', { chatId: c.id, mode: 'all' })
+      // دیپ‌اسکن کامل (تمام تاریخچهٔ کانال) و افزودن مستقیم به کتابخانه
+      const res = await api.invoke('scan.start', { chatId: cid, mode: 'all' })
       await api.invoke('lib.add', { tracks: res.tracks })
       S.tracks = await api.invoke('lib.list')
       toast('✓ ' + (res.tracks || []).length)
     }
     row.querySelector('[data-act=dl]').onclick = async () => {
       toast('⬇ ' + c.title)
-      const res = await api.invoke('scan.start', { chatId: c.id, mode: 'all' })
+      const res = await api.invoke('scan.start', { chatId: cid, mode: 'all' })
       for (const tr of (res.tracks || [])) await api.invoke('dl.add', { track: tr })
       toast('✓')
     }
@@ -604,7 +605,7 @@ function renderChannels() {
 }
 
 // ✅ v6.0.0: چت‌ها دقیقاً مثل فولدرهای خود تلگرام (همه / آرشیو / فولدرهای سفارشی)
-let activeFolder = -1
+let folderIndex = 0
 function renderChats() {
   const body = $('#tabBody')
   body.innerHTML = `
@@ -612,11 +613,12 @@ function renderChats() {
     <input id="chatSearch" placeholder="${t('search')}" />
     <div id="chatList"></div>`
   const list = $('#chatList')
-  const followedIds = new Set((S.followed || []).map(f => f.chatId))
+  const byId = id => list.querySelector(`.chat-row[data-cid="${id}"]`)
 
   const draw = chats => {
+    const followedIds = new Set((S.followed || []).map(f => f.chatId))
     list.innerHTML = chats.map(c => `
-      <div class="chat-row">
+      <div class="chat-row" data-cid="${c.id}">
         <div class="chat-avatar" style="background-image:url('${artUrl(c.photoFileId)}')">${c.photoFileId ? '' : esc((c.title || '?')[0])}</div>
         <div class="track-meta">
           <div class="track-title">${esc(c.title)}</div>
@@ -627,21 +629,24 @@ function renderChats() {
           <button class="ic" data-act="scan" title="${t('fullScan')}">🔍</button>
         </div>
       </div>`).join('')
-    list.querySelectorAll('.chat-row').forEach((row, i) => {
+    list.querySelectorAll('.chat-row').forEach(row => {
+      const cid = parseInt(row.dataset.cid, 10)
       row.querySelector('[data-act=scan]').onclick = async () => {
-        toast('🔍 ' + chats[i].title)
-        const res = await api.invoke('scan.start', { chatId: chats[i].id, mode: 'all' })
+        const chat = chats.find(c => c.id === cid)
+        toast('🔍 ' + (chat ? chat.title : ''))
+        const res = await api.invoke('scan.start', { chatId: cid, mode: 'all' })
         S.scanResults = res.tracks || []
         S.tab = 'scan'; renderNav(); loadTabs()
       }
-      const fb = row.querySelector('[data-act=follow]')
-      fb.onclick = async () => {
-        if (followedIds.has(chats[i].id)) {
-          await api.invoke('follow.remove', { chatId: chats[i].id })
+      row.querySelector('[data-act=follow]').onclick = async () => {
+        const chat = chats.find(c => c.id === cid)
+        const isFol = (S.followed || []).some(f => f.chatId === cid)
+        if (isFol) {
+          await api.invoke('follow.remove', { chatId: cid })
           toast('✓ ' + t('unfollow'))
         } else {
-          toast('🔔 ' + chats[i].title)
-          await api.invoke('follow.add', { chatId: chats[i].id, title: chats[i].title })
+          toast('🔔 ' + (chat ? chat.title : ''))
+          await api.invoke('follow.add', { chatId: cid, title: chat ? chat.title : '' })
           toast('✓ ' + t('follow'))
         }
         S.followed = await api.invoke('follow.list')
@@ -652,41 +657,38 @@ function renderChats() {
 
   const renderFolderBar = folders => {
     const bar = $('#folderBar')
-    const tabs = folders.map((f, i) => {
-      let label
-      if (f.name === 'all') label = t('allChats')
-      else if (f.name === 'archive') label = t('archive')
-      else label = f.title || ('📁 ' + i)
-      return `<button class="chip ${activeFolder === (f.id !== undefined && f.id >= 0 ? f.id : (f.name === 'archive' ? -2 : -1)) ? 'active' : ''}" data-fi="${i}">${esc(label)} (${f.chats.length})</button>`
+    bar.innerHTML = folders.map((f, i) => {
+      const label = f.name === 'all' ? t('allChats') : f.name === 'archive' ? t('archive') : (f.title || ('📁 ' + i))
+      return `<button class="chip ${i === folderIndex ? 'active' : ''}" data-fi="${i}">${esc(label)} (${f.chats.length})</button>`
     }).join('')
-    bar.innerHTML = tabs
     bar.querySelectorAll('[data-fi]').forEach(b => b.onclick = () => {
-      const f = folders[parseInt(b.dataset.fi, 10)]
-      activeFolder = f.name === 'archive' ? -2 : (f.name === 'custom' ? f.id : -1)
-      draw(f.chats)
+      folderIndex = parseInt(b.dataset.fi, 10)
+      const f = S.folders[folderIndex]
+      if (f) draw(f.chats)
       bar.querySelectorAll('.chip').forEach(x => x.classList.remove('active'))
       b.classList.add('active')
     })
   }
 
-  api.invoke('chats.folders').then(folders => {
-    S.folders = folders
+  const showFolder = () => {
+    const folders = S.folders || []
+    if (folderIndex >= folders.length) folderIndex = 0
+    const f = folders[folderIndex]
     renderFolderBar(folders)
-    let cur = folders.find(f => (f.name === 'custom' && f.id === activeFolder))
-    if (!cur) cur = folders.find(f => f.name === (activeFolder === -2 ? 'archive' : 'all')) || folders[0]
-    S.chats = (folders.find(f => f.name === 'all') || { chats: [] }).chats
-    draw(cur ? cur.chats : [])
+    draw(f ? f.chats : [])
+  }
+
+  api.invoke('chats.folders').then(folders => {
+    S.folders = folders || []
+    S.chats = ((folders || []).find(f => f.name === 'all') || { chats: [] }).chats
+    showFolder()
   }).catch(() => {
-    api.invoke('chats.list').then(chats => { S.chats = chats; draw(chats) })
+    api.invoke('chats.list').then(chats => { S.chats = chats; S.folders = [{ name: 'all', chats }]; showFolder() })
   })
 
   $('#chatSearch').oninput = async () => {
     const q = $('#chatSearch').value.trim()
-    if (!q) {
-      const cur = (S.folders || []).find(f => f.name === (activeFolder === -2 ? 'archive' : 'all'))
-      draw(cur ? cur.chats : S.chats)
-      return
-    }
+    if (!q) { const f = S.folders[folderIndex]; draw(f ? f.chats : S.chats); return }
     draw(await api.invoke('chats.search', { query: q }))
   }
 }

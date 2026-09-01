@@ -21,7 +21,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ir.moeshakteam.moeshakmusic
-        MARKETING_VERSION: 6.0.0
+        MARKETING_VERSION: 6.0.2
         CURRENT_PROJECT_VERSION: 10000
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"

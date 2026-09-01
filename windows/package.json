@@ -1,6 +1,6 @@
 {
   "name": "moeshak-music-windows",
-  "version": "6.0.0",
+  "version": "6.0.2",
   "description": "موشک موزیک — Telegram music player for Windows (TDLib + Electron)",
   "main": "src/main.js",
   "author": "Moeshak Team",

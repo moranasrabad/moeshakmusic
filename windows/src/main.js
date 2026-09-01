@@ -313,15 +313,15 @@ function registerIpc() {
         case 'follow.add': {
           const list = store.followed()
           if (list.find(f => f.chatId === payload.chatId)) return list
-          // دیپ‌اسکن کامل این چت + افزودن به کتابخانه
-          const tracks = await ensureTg().scan(payload.chatId, 'all', prog => send('scan', Object.assign({}, prog, { following: true })))
+          // دیپ‌اسکن کامل این چت + افزودن به کتابخانه (پس‌زمینه، بدون پراگرس صفحهٔ اسکن)
+          const tracks = await ensureTg().scan(payload.chatId, 'all', null, { background: true })
           const known = tracks.map(x => x.chatId + ':' + x.messageId)
           list.push({ chatId: payload.chatId, title: payload.title || '', knownIds: known, createdAt: Date.now() })
           store.saveFollowed(list)
-          // نتایج به کتابخانه هم اضافه شوند
+          // نتایج به کتابخانه هم اضافه شوند (کلید پایدار chatId:messageId)
           const cur = store.library()
-          const seen = new Set(cur.map(x => x.id))
-          const added = tracks.filter(x => !seen.has(x.id))
+          const seen = new Set(cur.map(x => x.chatId + ':' + x.messageId))
+          const added = tracks.filter(x => !seen.has(x.chatId + ':' + x.messageId))
           if (added.length) store.saveLibrary(cur.concat(added))
           send('follow', list)
           send('lib', store.library())
@@ -342,7 +342,8 @@ function registerIpc() {
           for (const f of list) {
             try {
               const known = new Set(f.knownIds || [])
-              const tracks = await ensureTg().scan(f.chatId, 'all', prog => send('scan', Object.assign({}, prog, { following: true, chatTitle: f.title })))
+              // چک پس‌زمینه — بدون رویداد پیشرفت رو صفحهٔ اسکن (تا «اسکن دوتایی» دیده نشود)
+              const tracks = await ensureTg().scan(f.chatId, 'all', null, { background: true })
               const fresh = []
               for (const tr of tracks) {
                 const key = tr.chatId + ':' + tr.messageId
@@ -379,11 +380,12 @@ function registerIpc() {
         case 'lib.list': return store.library()
         case 'lib.add': {
           const cur = store.library()
-          const seen = new Set(cur.map(t => t.id))
-          const added = (payload.tracks || []).filter(t => !seen.has(t.id))
+          // ✅ v6.0.2: کلید پایدار chatId:messageId (فقط fileId ممکن است بین چت‌ها تکراری شود)
+          const seen = new Set(cur.map(t => t.chatId + ':' + t.messageId))
+          const added = (payload.tracks || []).filter(t => !seen.has(t.chatId + ':' + t.messageId))
           store.saveLibrary(cur.concat(added))
           send('lib', store.library())
-          return true
+          return { added: added.length }
         }
         case 'lib.clear': store.saveLibrary([]); send('lib', []); return true
 
@@ -509,7 +511,7 @@ async function checkFollowedSilent() {
     for (const f of list) {
       try {
         const known = new Set(f.knownIds || [])
-        const tracks = await tg.scan(f.chatId, 'all', () => {})
+        const tracks = await tg.scan(f.chatId, 'all', null, { background: true })
         const fresh = []
         for (const tr of tracks) {
           const key = tr.chatId + ':' + tr.messageId

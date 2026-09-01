@@ -6,7 +6,7 @@ const { getTdjson } = require('prebuilt-tdlib')
 tdl.configure({ tdjson: getTdjson(), verbosityLevel: 1 })
 
 const CHUNK = 512 * 1024 // readFilePart limit
-const APP_VERSION = '6.0.0'
+const APP_VERSION = '6.0.2'
 
 // Map TDLib authorization_state names to friendly UI keys.
 const AUTH_MAP = {
@@ -95,8 +95,10 @@ class Tg {
   // ---- chats & folders (مثل فولدرهای خود تلگرام) ------------------------
   /** لیست چت‌های یک لیست (main / archive) با ترتیب خود تلگرام */
   async getChatsForList(chatList, limit = 1000) {
-    // مطمئن شو چت‌ها از دیتابیس لود شده‌اند
-    try { await this.invoke({ _: 'loadChats', chat_list: chatList, limit: 100 }) } catch (e) {}
+    // مطمئن شو همهٔ چت‌ها از دیتابیس لود شده‌اند (چند صفحه)
+    for (let i = 0; i < 30; i++) {
+      try { await this.invoke({ _: 'loadChats', chat_list: chatList, limit: 100 }) } catch (e) { break }
+    }
     const res = await this.invoke({ _: 'getChats', chat_list: chatList, limit })
     const ids = (res.chat_ids || []).slice(0, limit)
     const out = []
@@ -127,34 +129,58 @@ class Tg {
 
   /**
    * فولدرهای تلگرام — دقیقاً مثل اپ تلگرام:
-   * هر فولدر شامل includedChatIds است؛ «همه» = چت‌های اصلی، «آرشیو» = آرشیو.
+   * «همه» = چت‌های اصلی، «آرشیو» = آرشیو، بقیه = فولدرهای سفارشی کاربر.
+   * برای فولدرهای سفارشی، کل ساختار هر فولدر را با getChatFolder می‌گیریم (شامل
+   * included/excluded/pinned) تا دقیقاً همان چت‌های فولدر بیایند.
    */
   async getChatFolders() {
     const folders = [{ id: -1, name: 'all', title: '', chats: [] }, { id: -2, name: 'archive', title: '', chats: [] }]
+    let mainChats = [], archChats = []
     try {
-      const mainChats = await this.getChatsForList({ _: 'chatListMain' })
+      mainChats = await this.getChatsForList({ _: 'chatListMain' })
       folders[0].chats = mainChats
     } catch (e) {}
     try {
-      const archChats = await this.getChatsForList({ _: 'chatListArchive' })
+      archChats = await this.getChatsForList({ _: 'chatListArchive' })
       folders[1].chats = archChats
     } catch (e) {}
-    // فولدرهای سفارشی کاربر
+
+    // فولدرهای سفارشی کاربر — لیست idها را بگیر، سپس ساختار هرکدام را جداگانه
     try {
-      const res = await this.invoke({ _: 'getChatFolders' })
-      for (const f of (res.chat_folders || [])) {
-        const ids = new Set([...(f.included_chat_ids || []), ...(f.pinned_chat_ids || [])])
-        const chats = []
-        for (const id of ids) {
-          try { chats.push(chatToInfo(await this.invoke({ _: 'getChat', chat_id: id }))) } catch (e) {}
-        }
-        folders.push({
-          id: f.id,
-          name: 'custom',
-          title: f.title || '',
-          icon: (f.icon && f.icon.name) || '',
-          chats
-        })
+      const info = await this.invoke({ _: 'getChatFolders' }) // ChatFolderInfo { chat_folder_ids[] }
+      const ids = info.chat_folder_ids || info.ids || []
+      for (const fid of ids) {
+        try {
+          const f = await this.invoke({ _: 'getChatFolder', chat_folder_id: fid })
+          if (!f) continue
+          // چت‌های این فولدر: included + pinned، منهای excluded
+          const inIds = new Set([
+            ...(f.included_chat_ids || []),
+            ...(f.pinned_chat_ids || [])
+          ])
+          for (const ex of (f.excluded_chat_ids || [])) inIds.delete(ex)
+          const chats = []
+          for (const id of inIds) {
+            try {
+              const c = chatToInfo(await this.invoke({ _: 'getChat', chat_id: id }))
+              // فولدرهایی که شامل آرشیو هستند: چت‌های آرشیوشده هم شامل شوند
+              chats.push(c)
+            } catch (e) {}
+          }
+          // اگر فولدر include_archive دارد، چت‌های آرشیو را هم (که exclude نشده‌اند) اضافه کن
+          if (f.include_archived_chats) {
+            for (const c of archChats) {
+              if (!(f.excluded_chat_ids || []).includes(c.id)) chats.push(c)
+            }
+          }
+          folders.push({
+            id: fid,
+            name: 'custom',
+            title: f.name && f.name.text ? f.name.text : f.title || ('📁 ' + fid),
+            icon: (f.icon && f.icon.name) || '',
+            chats: dedupeChats(chats)
+          })
+        } catch (e) {}
       }
     } catch (e) {
       // نسخهٔ قدیمی TDLib یا اکانت محدود — بدون فولدر سفارشی ادامه بده
@@ -188,8 +214,28 @@ class Tg {
   }
 
   // ---- scan -------------------------------------------------------------
+  /** آیا اسکنی در جریان است؟ (جلوگیری از اسکن دوتایی هم‌زمان) */
+  isScanning() { return !!this._scanActive }
+
   /** اسکن یک چت — کل تاریخچه (دیپ) یا با سقف پیام */
-  async scan(chatId, mode, onProgress) {
+  async scan(chatId, mode, onProgress, opts) {
+    // ✅ v6.0.2: فقط یک اسکنِ کاربر هم‌زمان. اسکن پس‌زمینه (چک دنبال‌شده‌ها) منتظر
+    // می‌ماند تا اسکن کاربر تمام شود تا با هم تداخل نکنند.
+    while (this._scanActive) {
+      if (this.scanCancel && !(opts && opts.background)) break
+      await new Promise(r => setTimeout(r, 300))
+    }
+    this._scanActive = true
+    // اگر اسکن قبلی لغو شده بود، پرچم را از نو ریست کن (وگرنه دیپ‌اسکن بعد از لغو خالی می‌شد)
+    this.scanCancel = false
+    try {
+      return await this._scanChat(chatId, mode, onProgress)
+    } finally {
+      this._scanActive = false
+    }
+  }
+
+  async _scanChat(chatId, mode, onProgress) {
     const limit = mode === 'all' ? Infinity : parseInt(mode, 10) || 100
     const perPage = 100
     const results = []
@@ -244,18 +290,23 @@ class Tg {
    * به‌ترتیب فولدرهای تلگرام؛ در هر چت تا depthPerChat پیام (یا ∞ برای حالت all).
    */
   async scanAll(onProgress, opts) {
+    if (this._scanActive) return []
+    this._scanActive = true
+    this.scanCancel = false
     const depth = (opts && opts.depth) || 300
-    const all = await this.getAllChats()
     const allResults = []
-    const seen = new Set()
     let processedChats = 0
+    let totalChats = 0
     try {
+      const all = await this.getAllChats()
+      totalChats = all.length
+      const seen = new Set()
       for (const c of all) {
         if (this.scanCancel) break
-        const tracks = await this.scan(c.id, depth, p => {
+        const tracks = await this._scanChat(c.id, depth, p => {
           onProgress && onProgress({
             processed: p.processed, total: p.total, found: allResults.length + p.found,
-            chatTitle: c.title, chatIndex: processedChats, chatCount: all.length, allChats: true
+            chatTitle: c.title, chatIndex: processedChats, chatCount: totalChats, allChats: true
           })
         })
         for (const t of tracks) {
@@ -263,10 +314,12 @@ class Tg {
           if (!seen.has(key)) { seen.add(key); allResults.push(t) }
         }
         processedChats++
-        onProgress && onProgress({ found: allResults.length, chatTitle: c.title, chatIndex: processedChats, chatCount: all.length, allChats: true, phase: 'chat-done' })
+        onProgress && onProgress({ found: allResults.length, chatTitle: c.title, chatIndex: processedChats, chatCount: totalChats, allChats: true, phase: 'chat-done' })
       }
-    } finally {}
-    onProgress && onProgress({ found: allResults.length, chatIndex: processedChats, chatCount: all.length, allChats: true, done: true, canceled: this.scanCancel })
+      onProgress && onProgress({ found: allResults.length, chatIndex: processedChats, chatCount: totalChats, allChats: true, done: true, canceled: this.scanCancel })
+    } finally {
+      this._scanActive = false
+    }
     return allResults
   }
 
@@ -356,12 +409,9 @@ function extractTrack(m, chatId, chatTitle) {
     if (a.album_cover_minithumbnail && a.album_cover_minithumbnail.data) {
       coverMini = 'data:image/jpeg;base64,' + a.album_cover_minithumbnail.data
     }
-  } else if (c._ === 'messageVoiceNote' && c.voice_note) {
-    title = 'Voice Note'
-    performer = ''
-    duration = c.voice_note.duration || 0
-    doc = c.voice_note.voice
-    mime = (doc && doc.mime_type) || 'audio/ogg'
+  } else if (c._ === 'messageVoiceNote') {
+    // ✅ v6.0.2: ویس‌ها اصلاً جزو «آهنگ‌ها» نیایند
+    return null
   } else if (c._ === 'messageDocument' && c.document && /audio/i.test(c.document.mime_type || '')) {
     title = (c.document.file_name || 'Audio').replace(/\.[^.]+$/, '')
     performer = ''
@@ -384,6 +434,15 @@ function extractTrack(m, chatId, chatTitle) {
     albumCoverFileId: coverFileId,
     albumCoverMini: coverMini
   }
+}
+
+function dedupeChats(chats) {
+  const seen = new Set()
+  const out = []
+  for (const c of chats) {
+    if (!seen.has(c.id)) { seen.add(c.id); out.push(c) }
+  }
+  return out
 }
 
 module.exports = { Tg, CHUNK, APP_VERSION }

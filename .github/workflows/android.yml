@@ -5,7 +5,7 @@ on:
     inputs:
       tag:
         description: 'Release tag to attach APKs to'
-        default: 'v6.0.0'
+        default: 'v6.0.2'
   push:
     branches: [main]
     paths:
@@ -51,7 +51,7 @@ jobs:
       - name: Stash slim APK
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/release/app-release.apk out/MoeshakMusic-v6.0.0-slim-arm64.apk
+          cp app/build/outputs/apk/release/app-release.apk out/MoeshakMusic-v6.0.2-slim-arm64.apk
 
       - name: Build full APK (arm64 + armv7 + x86_64/WSA)
         run: gradle --no-daemon assembleRelease
@@ -61,8 +61,8 @@ jobs:
 
       - name: Collect artifacts
         run: |
-          cp app/build/outputs/apk/release/app-release.apk out/MoeshakMusic-v6.0.0.apk
-          cp app/build/outputs/bundle/release/app-release.aab out/MoeshakMusic-v6.0.0.aab 2>/dev/null || true
+          cp app/build/outputs/apk/release/app-release.apk out/MoeshakMusic-v6.0.2.apk
+          cp app/build/outputs/bundle/release/app-release.aab out/MoeshakMusic-v6.0.2.aab 2>/dev/null || true
           ls -la out/
 
       - name: Upload artifacts
@@ -76,5 +76,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${{ github.event.inputs.tag }}"
-          if [ -z "$tag" ]; then tag="v6.0.0"; fi
+          if [ -z "$tag" ]; then tag="v6.0.2"; fi
           gh release upload "$tag" out/* --clobber
