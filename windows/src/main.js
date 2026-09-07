@@ -188,21 +188,47 @@ async function handleMedia(request, mode) {
   }
 }
 
-async function getArt(fileId) {
-  if (!fileId) return null
-  if (artCache.has(fileId)) return artCache.get(fileId)
+async function getArtRaw(fileId) {
   try {
     await tg.downloadFile(fileId, 1)
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 12; i++) {
       const f = await tg.getFile(fileId)
       if (f && f.completed && f.path) {
         const buf = await fs.promises.readFile(f.path)
-        if (buf.length) { artCache.set(fileId, buf); return buf }
+        if (buf.length) return buf
       }
-      await sleep(250)
+      await sleep(120)
     }
   } catch (e) {}
   return null
+}
+
+// ✅ همزمانی محدود + dedupe تا صدها درخواست کاور هم‌زمان main را غرق/قفل نکنند
+const artInflight = new Map()
+const artQueue = []
+let artActive = 0
+const ART_MAX = 3
+function _pumpArt() {
+  while (artActive < ART_MAX && artQueue.length) {
+    const { id, resolve } = artQueue.shift()
+    artActive++
+    getArtRaw(id)
+      .then(buf => { if (buf) artCache.set(id, buf); resolve(buf) })
+      .catch(() => resolve(null))
+      .finally(() => {
+        artInflight.delete(id)
+        artActive--
+        _pumpArt()
+      })
+  }
+}
+function getArt(fileId) {
+  if (!fileId) return Promise.resolve(null)
+  if (artCache.has(fileId)) return Promise.resolve(artCache.get(fileId))
+  if (artInflight.has(fileId)) return artInflight.get(fileId)
+  const p = new Promise(resolve => { artQueue.push({ id: fileId, resolve }); _pumpArt() })
+  artInflight.set(fileId, p)
+  return p
 }
 
 async function handleArt(request) {

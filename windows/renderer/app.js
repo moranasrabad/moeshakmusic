@@ -185,6 +185,26 @@ function coverOf(track) {
   if (track.albumCoverMini) return track.albumCoverMini
   return artUrl(track.chatPhotoFileId || 0)
 }
+// ✅ مینی‌تامب (data-URI داخل خود ترک) را فوری بگذار؛ کاور شبکه‌ای را lazy.
+function coverLazyAttr(track) {
+  if (track.albumCoverMini) return `style="background-image:url('${track.albumCoverMini}')"`
+  if (track.albumCoverFileId || track.chatPhotoFileId) return `data-art="${artUrl(track.albumCoverFileId || track.chatPhotoFileId)}"`
+  return ''
+}
+// لزی‌لود کاورها فقط وقتی ردیف وارد دید شد (ضد رگبار درخواست کاور در main)
+const _artObs = ('IntersectionObserver' in window) ? new IntersectionObserver(entries => {
+  for (const en of entries) {
+    if (!en.isIntersecting) continue
+    const el = en.target
+    const url = el.dataset.art
+    if (url) { el.style.backgroundImage = `url('${url}')`; el.removeAttribute('data-art') }
+    _artObs.unobserve(el)
+  }
+}, { root: document.getElementById('tabBody') || null, rootMargin: '200px' }) : null
+function observeArt(root) {
+  if (!_artObs || !root) return
+  root.querySelectorAll('[data-art]').forEach(el => _artObs.observe(el))
+}
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
 
 // ---------------- events ----------------
@@ -362,7 +382,7 @@ function trackRowHtml(track, index, listKey) {
   const fav = S._favKeys ? (S._favKeys.has(k) || S._favIds.has(track.id)) : S.favorites.some(f => trackKey(f) === k || f.id === track.id)
   return `<div class="track-row ${isPlaying ? 'playing' : ''} ${checked ? 'selected' : ''}" data-idx="${index}" data-key="${esc(k)}">
     ${S.selMode ? `<div class="track-check" data-act="check">${checked ? '☑' : '☐'}</div>` : ''}
-    <div class="track-cover" style="background-image:url('${coverOf(track)}')">${track.albumCoverFileId || track.chatPhotoFileId ? '' : '♪'}</div>
+    <div class="track-cover" ${coverLazyAttr(track)}>${track.albumCoverFileId || track.chatPhotoFileId ? '' : '♪'}</div>
     <div class="track-meta">
       <div class="track-title">${esc(track.title)}</div>
       <div class="track-sub">${esc(track.performer || track.chatTitle || '')} · ${fmt(track.duration)}</div>
@@ -447,6 +467,7 @@ function renderTrackList(container, list, listKey) {
   }
   drawPage()
   wireTrackRowsDelegated(holder, listKey)
+  observeArt(holder)
   return holder
 }
 
