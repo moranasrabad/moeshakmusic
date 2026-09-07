@@ -21,8 +21,8 @@ android {
         applicationId "ir.moeshakteam.moeshakmusic"
         minSdk 24
         targetSdk 33
-        versionCode 107
-        versionName "6.0.7"
+        versionCode 108
+        versionName "6.0.8"
         vectorDrawables.useSupportLibrary = true
         buildConfigField "int", "BAKED_API_ID", BAKED_API_ID
         buildConfigField "String", "BAKED_API_HASH", "\"${BAKED_API_HASH}\""

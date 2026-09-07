@@ -389,9 +389,14 @@ function registerIpc() {
         case 'lib.list': return store.library()
         case 'lib.add': {
           const cur = store.library()
-          // ✅ v6.0.2: کلید پایدار chatId:messageId (فقط fileId ممکن است بین چت‌ها تکراری شود)
+          // ✅ کلید پایدار chatId:messageId (فقط fileId ممکن است بین چت‌ها تکراری شود)
           const seen = new Set(cur.map(t => t.chatId + ':' + t.messageId))
-          const added = (payload.tracks || []).filter(t => !seen.has(t.chatId + ':' + t.messageId))
+          const clean = (payload.tracks || []).map(t => {
+            if (!t || typeof t !== 'object') return t
+            const fileId = t.fileId || t.id
+            return Object.assign({}, t, { fileId, id: fileId })
+          }).filter(t => t && (t.fileId || t.id) && t.chatId !== undefined)
+          const added = clean.filter(t => !seen.has(t.chatId + ':' + t.messageId))
           store.saveLibrary(cur.concat(added))
           send('lib', store.library())
           return { added: added.length }

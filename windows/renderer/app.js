@@ -587,7 +587,8 @@ function renderScan() {
       <button class="chip ${scanDepth === 'all' ? 'active' : ''}" data-depth="all">∞</button>
     </div>
     <p class="section-label">${t('scanChats')}</p>
-    <div id="scanChatList"></div>`
+    <div id="scanChatList"></div>
+    <div id="scanResults" style="margin-top:14px"></div>`
   body.querySelectorAll('.chip').forEach(ch => ch.onclick = () => {
     scanDepth = ch.dataset.depth === 'all' ? 'all' : parseInt(ch.dataset.depth, 10)
     body.querySelectorAll('.scan-controls .chip').forEach(x => x.classList.remove('active'))
@@ -604,6 +605,14 @@ function renderScan() {
       const res = await api.invoke('scan.all', { depth: depthPerChat })
       S.scanResults = res.tracks || []
       S.scanView = 'results'
+      // ✅ مثل اندروید: نتایج اسکن خودکار به کتابخانه هم اضافه شوند (بدون تکرار)
+      if (S.scanResults.length) {
+        try {
+          const r = await api.invoke('lib.add', { tracks: S.scanResults })
+          S.tracks = await api.invoke('lib.list')
+          if (r && r.added) toast('✓ ' + r.added + ' / ' + S.scanResults.length)
+        } catch (e) {}
+      }
     } finally {
       scanBusy = false
       $('#scanAllBtn').textContent = t('scanAllChats')
