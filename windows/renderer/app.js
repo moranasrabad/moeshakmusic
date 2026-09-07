@@ -1118,10 +1118,13 @@ function openAddToPlaylist(track) {
 }
 
 // ---------------- player ----------------
+// ✅ fileId پایدار — ترک‌های قدیمی کتابخانه ممکن است فقط id داشته باشند
+const fid = t => (t && (t.fileId || t.id)) || 0
+
 function setMeta(track) {
   S.current = track
   localFallback = false
-  const src = `moeshak-stream://${track.fileId}?size=${track.size || 0}&mime=${encodeURIComponent(track.mimeType || 'audio/mpeg')}`
+  const src = `moeshak-stream://${fid(track)}?size=${track.size || 0}&mime=${encodeURIComponent(track.mimeType || 'audio/mpeg')}`
   audio.src = src
   $('#pbTitle').textContent = track.title
   $('#pbArtist').textContent = track.performer || track.chatTitle || ''
@@ -1169,8 +1172,8 @@ audio.addEventListener('error', () => {
   if (S.current && !localFallback) {
     localFallback = true
     const tr = S.current
-    audio.src = `moeshak-local://${tr.fileId}?size=${tr.size || 0}&mime=${encodeURIComponent(tr.mimeType || 'audio/mpeg')}`
-    api.invoke('file.download', { fileId: tr.fileId }).catch(() => {})
+    audio.src = `moeshak-local://${fid(tr)}?size=${tr.size || 0}&mime=${encodeURIComponent(tr.mimeType || 'audio/mpeg')}`
+    api.invoke('file.download', { fileId: fid(tr) }).catch(() => {})
     audio.play().catch(() => {})
   }
 })
@@ -1211,8 +1214,8 @@ function togglePlay() {
       // اگر استریم مستقیم خطا داد، فالبک لوکال
       if (S.current) {
         const tr = S.current
-        audio.src = `moeshak-local://${tr.fileId}?size=${tr.size || 0}&mime=${encodeURIComponent(tr.mimeType || 'audio/mpeg')}`
-        api.invoke('file.download', { fileId: tr.fileId }).catch(() => {})
+        audio.src = `moeshak-local://${fid(tr)}?size=${tr.size || 0}&mime=${encodeURIComponent(tr.mimeType || 'audio/mpeg')}`
+        api.invoke('file.download', { fileId: fid(tr) }).catch(() => {})
         audio.play().catch(() => {})
       }
     })
@@ -1263,6 +1266,26 @@ if ('mediaSession' in navigator) {
   navigator.mediaSession.setActionHandler('seekbackward', () => { audio.currentTime = Math.max(0, audio.currentTime - 10) })
   navigator.mediaSession.setActionHandler('seekforward', () => { audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10) })
 }
+
+// ✅ توقف خودکار هنگام وصل/قطع بلوتوث یا هدفون (تغییر دستگاه خروجی صدا)
+;(async () => {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return
+  const audioOuts = async () => {
+    try { return (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput') }
+    catch (e) { return [] }
+  }
+  let last = (await audioOuts()).map(d => d.deviceId).sort().join('|')
+  const stop = () => { try { audio.pause() } catch (e) {} }
+  navigator.mediaDevices.addEventListener('devicechange', async () => {
+    const now = (await audioOuts()).map(d => d.deviceId).sort().join('|')
+    if (now !== last) {
+      last = now
+      stop() // چه بلوتوث وصل شود چه قطع → توقف
+    }
+  })
+})()
+// هدفون کشیده شد یا مسیر صدا قطع شد
+window.addEventListener('pause-route', () => { try { audio.pause() } catch (e) {} })
 
 // ---------------- visualizer ----------------
 // نرم + همیشه‌نمایان: گذار نرم بین فریم‌ها + ریبایند خودکار موقع تعویض ترک.

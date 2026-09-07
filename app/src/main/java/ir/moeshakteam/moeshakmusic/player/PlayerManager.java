@@ -1,8 +1,13 @@
 package ir.moeshakteam.moeshakmusic.player;
 
 import android.Manifest;
+import android.bluetooth.BluetoothHeadset;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -51,6 +56,9 @@ public final class PlayerManager {
     private final Context ctx;
     private ExoPlayer player;
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
+    /** ✅ وقتی بلوتوث/هدفون وصل یا قطع می‌شود پخش خودکار متوقف شود */
+    private BroadcastReceiver audioRouteReceiver;
+    private boolean audioRouteReceiverRegistered = false;
     public final List<Track> queue = new CopyOnWriteArrayList<>();
     public volatile int index = -1;
     /** حالت تکرار: 0=خاموش 1=همه 2=یک آهنگ */
@@ -183,6 +191,50 @@ public final class PlayerManager {
 
     private PlayerManager(Context c) {
         ctx = c.getApplicationContext();
+        registerAudioRouteReceiver();
+    }
+
+    /**
+     * ✅ توقف خودکار هنگام تغییر وضعیت بلوتوث/هدفون.
+     * چه بلوتوث وصل شود چه قطع، پخش متوقف می‌شود (طبق درخواست).
+     * با هندلر روی main و مقایسهٔ state قدیم/جدید، رویدادهای تکراری نادیده گرفته می‌شوند.
+     */
+    private void registerAudioRouteReceiver() {
+        if (audioRouteReceiverRegistered) return;
+        audioRouteReceiver = new BroadcastReceiver() {
+            private Integer lastState;
+            @Override public void onReceive(Context context, Intent intent) {
+                final String action = intent.getAction();
+                if (action == null) return;
+                boolean changed = false;
+                if (BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED.equals(action)
+                        || BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED.equals(action)) {
+                    int state = intent.getIntExtra(BluetoothHeadset.EXTRA_STATE, -1);
+                    // فقط روی اتصال/قطعِ واقعی (نه انتقال‌ها)
+                    if (state == BluetoothHeadset.STATE_CONNECTED
+                            || state == BluetoothHeadset.STATE_DISCONNECTED
+                            || state == BluetoothHeadset.STATE_AUDIO_CONNECTED
+                            || state == BluetoothHeadset.STATE_AUDIO_DISCONNECTED) {
+                        if (lastState == null || lastState != state) { lastState = state; changed = true; }
+                    }
+                } else if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(action)) {
+                    changed = true; // هدفون سیمی کشیده شد
+                }
+                if (changed) pause();
+            }
+        };
+        IntentFilter f = new IntentFilter();
+        f.addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED);
+        f.addAction(BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED);
+        f.addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+        try {
+            // RECEIVER_NOT_EXPORTED — فقط سیستم این برودکست‌ها را می‌فرستد
+            ctx.registerReceiver(audioRouteReceiver, f, Context.RECEIVER_NOT_EXPORTED);
+            audioRouteReceiverRegistered = true;
+        } catch (Throwable t) {
+            try { ctx.registerReceiver(audioRouteReceiver, f); audioRouteReceiverRegistered = true; }
+            catch (Throwable ignored) {}
+        }
     }
 
     private synchronized ExoPlayer p() {
@@ -284,6 +336,14 @@ public final class PlayerManager {
         ExoPlayer pl = p();
         if (pl.isPlaying()) pl.pause();
         else pl.play();
+    }
+
+    /** ✅ توقف پخش (روی main) — هنگام وصل/قطع بلوتوث یا کشیدن هدفون */
+    public void pause() {
+        main.post(() -> {
+            try { if (player != null && player.isPlaying()) { player.pause(); } }
+            catch (Throwable ignored) {}
+        });
     }
 
     /** توقف کامل — هنگام خروج/خاتمهٔ نشست (صف خالی + توقف پخش) */

@@ -452,10 +452,12 @@ function registerIpc() {
 
         case 'dl.list': return store.downloads()
         case 'dl.add': {
+          const tr = payload.track || {}
+          const fId = tr.fileId || tr.id
           const dl = store.downloads()
-          if (!dl.find(t => t.id === payload.track.id)) dl.unshift(payload.track)
+          if (!dl.find(t => (t.fileId || t.id) === fId)) dl.unshift(tr)
           store.saveDownloads(dl); send('dl', dl)
-          try { await ensureTg().downloadFile(payload.track.fileId, 32) } catch (e) {}
+          try { await ensureTg().downloadFile(fId, 32) } catch (e) {}
           return true
         }
         case 'dl.remove': {
