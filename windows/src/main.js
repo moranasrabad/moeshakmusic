@@ -237,6 +237,7 @@ function createWindow() {
 }
 
 function createTray() {
+  if (tray && !tray.isDestroyed()) return // سینی از قبل وجود دارد — دوباره نساز
   try {
     // ✅ v6.0.0: آیکون تری از مسیر داخل app-آسار/پکیج — با fallback به dataURI
     let img = nativeImage.createFromPath(path.join(__dirname, '..', 'assets', 'icon.png'))
@@ -249,11 +250,13 @@ function createTray() {
     tray = new Tray(img)
     tray.setToolTip('Moeshak Music')
     tray.setContextMenu(Menu.buildFromTemplate([
-      { label: 'Open Moeshak Music', click: () => { if (win) { win.show(); win.focus() } else createWindow() } },
+      { label: 'Open Moeshak Music', click: () => showMainWindow() },
       { type: 'separator' },
       { label: 'Quit', click: () => { quitting = true; app.quit() } }
     ]))
-    tray.on('double-click', () => { if (win) { win.show(); win.focus() } })
+    // روی ویندوز کلیک ساده هم باز کند (نه فقط دابل‌کلیک)
+    tray.on('click', () => showMainWindow())
+    tray.on('double-click', () => showMainWindow())
   } catch (e) {}
 }
 
@@ -512,11 +515,23 @@ function registerIpc() {
 // lifecycle
 let lastAuth = null
 
+// ✅ نمایش/بازیابی پنجرهٔ اصلی — اگر بسته شده بود دوباره می‌سازد.
+// این تابع هم برای کلیک روی آیکون تسک‌بار (second-instance) هم سینی استفاده می‌شود.
+function showMainWindow() {
+  if (!win || win.isDestroyed()) { createWindow(); createTray(); }
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
+
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
 } else {
-  app.on('second-instance', () => { if (win) { win.show(); win.focus() } })
+  // وقتی اپ در سینی در حال اجراست و کاربر آیکون تسک‌بار/شورتکات را می‌زند:
+  app.on('second-instance', () => showMainWindow())
+  // مک: کلیک روی آیکون داک
+  app.on('activate', () => showMainWindow())
 
   app.whenReady().then(() => {
     store = new Store(app.getPath('userData'))
