@@ -61,7 +61,16 @@ function ensureTg() {
     databaseDirectory: path.join(app.getPath('userData'), 'tdlib'),
     filesDirectory: path.join(app.getPath('userData'), 'tdlib-files'),
     onEvent: (type, data) => {
-      if (type === 'auth') lastAuth = data
+      if (type === 'auth') {
+        lastAuth = data
+        // مثل اندروید: وقتی اتصال آماده شد، پروکسی ذخیره‌شده را دوباره اعمال کن
+        if (data && data.state === 'ready') {
+          const sp = store.settings().proxy
+          if (sp && sp.server && sp.port) {
+            tg.setProxy(sp).then(() => log('Proxy re-applied on ready: ' + sp.server)).catch(e => log('Proxy re-apply failed: ' + (e && e.message)))
+          }
+        }
+      }
       if (win && !win.isDestroyed()) win.webContents.send('evt:' + type, data)
       if (type === 'error') log('TDLib: ' + data)
     }

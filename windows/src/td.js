@@ -6,7 +6,7 @@ const { getTdjson } = require('prebuilt-tdlib')
 tdl.configure({ tdjson: getTdjson(), verbosityLevel: 1 })
 
 const CHUNK = 512 * 1024 // readFilePart limit
-const APP_VERSION = '6.0.8'
+const APP_VERSION = '6.0.9'
 
 // Map TDLib authorization_state names to friendly UI keys.
 const AUTH_MAP = {
@@ -387,37 +387,59 @@ class Tg {
   }
   deleteFile(fileId) { return this.invoke({ _: 'deleteFile', file_id: fileId }).catch(() => {}) }
 
-  // ---- proxy ------------------------------------------------------------
+  // ---- proxy (عیناً مثل پیاده‌سازی پایدار اندروید) ------------------------
+  async _removeAllProxies() {
+    try {
+      const res = await this.invoke({ _: 'getProxies' })
+      for (const pr of ((res && res.proxies) || [])) {
+        const id = pr.id != null ? pr.id : (pr.proxy_id != null ? pr.proxy_id : null)
+        if (id != null) { try { await this.invoke({ _: 'removeProxy', proxy_id: id }) } catch (e) {} }
+      }
+    } catch (e) {}
+    try { await this.invoke({ _: 'disableProxy' }) } catch (e) {}
+  }
+
   async setProxy(p) {
-    // حذف همهٔ پروکسی‌ها و غیرفعال‌کردن
+    // حذف/غیرفعال‌کردن پروکسی
     if (!p || !p.server || !p.port) {
-      try {
-        const res = await this.invoke({ _: 'getProxies' })
-        const ids = (res && res.proxies) || []
-        for (const pr of ids) {
-          try { await this.invoke({ _: 'removeProxy', proxy_id: pr.id }) } catch (e) {}
-        }
-      } catch (e) {}
+      await this._removeAllProxies()
       return true
     }
+    const server = String(p.server).trim()
+    const port = parseInt(p.port, 10)
+    let secret = (p.secret || '').trim()
+    // نرمال‌سازی secret: حذف فاصله/خط و حروف اضافه
+    secret = secret.replace(/\s+/g, '')
+    if (!server || !port) throw new Error('bad proxy')
+
     let type
     if (p.type === 'http') {
       type = { _: 'proxyTypeHttp', username: p.username || '', password: p.password || '', http_only: true }
     } else if (p.type === 'mtproto') {
-      // ✅ پروکسی MTProto تلگرام — فقط server/port/secret
-      type = { _: 'proxyTypeMtproto', secret: p.secret || '' }
+      // secret باید خالی نباشد وگرنه TDLib خطای «Proxy must be non-empty» می‌دهد
+      if (!secret) throw new Error('mtproto secret empty')
+      type = { _: 'proxyTypeMtproto', secret }
     } else {
       type = { _: 'proxyTypeSocks5', username: p.username || '', password: p.password || '' }
     }
-    // پروکسی‌های قبلی را پاک کن تا همیشه فقط یکی فعال باشد
+
+    // اول پروکسی موجود با همین مشخصات را فعال کن (جلوگیری از انباشت)
     try {
       const res = await this.invoke({ _: 'getProxies' })
-      for (const pr of (res && res.proxies) || []) {
-        try { await this.invoke({ _: 'removeProxy', proxy_id: pr.id }) } catch (e) {}
+      for (const ap of ((res && res.proxies) || [])) {
+        const pr = ap.proxy || ap
+        const pid = ap.id != null ? ap.id : (pr && pr.id)
+        if (pr && pr.server === server && pr.port === port) {
+          if (pid != null) { await this.invoke({ _: 'enableProxy', proxy_id: pid }); return ap }
+        }
       }
     } catch (e) {}
-    // addProxy با enable:true همان لحظه پروکسی را فعال می‌کند
-    const added = await this.invoke({ _: 'addProxy', server: p.server, port: parseInt(p.port, 10), enable: true, type })
+
+    // پاک‌کردن پروکسی‌های قبلی (همیشه فقط یکی فعال باشد)
+    await this._removeAllProxies()
+
+    // افزودن و فعال‌سازی یک‌جا (enable=true) — همان روش اندروید
+    const added = await this.invoke({ _: 'addProxy', server, port, enable: true, type })
     return added
   }
 

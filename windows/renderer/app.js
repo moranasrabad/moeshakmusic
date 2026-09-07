@@ -27,7 +27,7 @@ const I18N = {
     addToQueue: 'افزودن به صف', fullScan: 'اسکن کامل', downloadAll: 'دانلود کامل',
     theme: 'تم', dark: 'شب', light: 'روز', accent: 'رنگ اکسنت', lang: 'زبان',
     proxy: 'پروکسی', proxyType: 'نوع', proxyServer: 'سرور', proxyPort: 'پورت', proxyUser: 'یوزر', proxyPass: 'پسورد',
-    proxySave: 'ذخیره پروکسی', proxySecret: 'سکرت (Secret)', proxyClear: 'حذف پروکسی', proxyFields: 'سرور، پورت و (برای MTProto) سکرت را وارد کن', apiKeys: 'کلید API شخصی', apiId: 'api_id', apiHash: 'api_hash',
+    proxySave: 'ذخیره پروکسی', proxySecret: 'سکرت (Secret)', proxyClear: 'حذف پروکسی', proxyFields: 'سرور، پورت و (برای MTProto) سکرت را وارد کن', proxyLink: 'لینک پروکسی را اینجا پیست کن (tg://proxy?… یا host:port:secret)', proxyBad: 'لینک پروکسی معتبر نیست', apiKeys: 'کلید API شخصی', apiId: 'api_id', apiHash: 'api_hash',
     apiHint: 'بعد از تغییر، اپ را ری‌استارت کن', save: 'ذخیره',
     connReady: 'اتصال برقرار است', connConnecting: 'در حال اتصال…', connWaiting: 'در انتظار شبکه…', connUpdating: 'به‌روزرسانی…',
     logoutConfirm: 'از حساب خارج شوی؟', yes: 'بله', no: 'نه',
@@ -57,7 +57,7 @@ const I18N = {
     addToQueue: 'Add to queue', fullScan: 'Full scan', downloadAll: 'Download all',
     theme: 'Theme', dark: 'Dark', light: 'Light', accent: 'Accent', lang: 'Language',
     proxy: 'Proxy', proxyType: 'Type', proxyServer: 'Server', proxyPort: 'Port', proxyUser: 'User', proxyPass: 'Pass',
-    proxySave: 'Save proxy', proxySecret: 'Secret', proxyClear: 'Remove proxy', proxyFields: 'Enter server, port, and (for MTProto) secret', apiKeys: 'Personal API keys', apiId: 'api_id', apiHash: 'api_hash',
+    proxySave: 'Save proxy', proxySecret: 'Secret', proxyClear: 'Remove proxy', proxyFields: 'Enter server, port, and (for MTProto) secret', proxyLink: 'Paste proxy link here (tg://proxy?… or host:port:secret)', proxyBad: 'Invalid proxy link', apiKeys: 'Personal API keys', apiId: 'api_id', apiHash: 'api_hash',
     apiHint: 'Restart the app after changing', save: 'Save',
     connReady: 'Connected', connConnecting: 'Connecting…', connWaiting: 'Waiting for network…', connUpdating: 'Updating…',
     logoutConfirm: 'Log out?', yes: 'Yes', no: 'No',
@@ -562,8 +562,10 @@ function renderSettingsDl() {
   })
 }
 
-let scanBusy = false
-let scanDepth = 300
+// وضعیت اسکن روی S نگه‌داری می‌شود تا با جابه‌جایی تب پاک/ریست نشود
+S.scanBusy = S.scanBusy || false
+S.scanDepth = S.scanDepth || 300
+S.scanLastProgress = S.scanLastProgress || null
 
 function chatIcon(c) {
   if (c.kind === 'channel') return '📢'
@@ -590,18 +592,28 @@ function renderScan() {
     <div id="scanChatList"></div>
     <div id="scanResults" style="margin-top:14px"></div>`
   body.querySelectorAll('.chip').forEach(ch => ch.onclick = () => {
-    scanDepth = ch.dataset.depth === 'all' ? 'all' : parseInt(ch.dataset.depth, 10)
+    S.scanDepth = ch.dataset.depth === 'all' ? 'all' : parseInt(ch.dataset.depth, 10)
     body.querySelectorAll('.scan-controls .chip').forEach(x => x.classList.remove('active'))
     ch.classList.add('active')
   })
+  // ✅ بازگشت به تب اسکن: اگر اسکن در جریان بود، پیشرفت را پاک‌شده نشان نده
+  const restoreScanUi = () => {
+    if (S.scanBusy) {
+      $('#scanAllBtn').textContent = t('cancel')
+      $('#scanProgress').classList.remove('hidden')
+      if (S.scanLastProgress) renderScanProgress(S.scanLastProgress)
+    }
+  }
   $('#scanAllBtn').onclick = async () => {
-    if (scanBusy) { api.invoke('scan.cancel'); return }
-    scanBusy = true
+    if (S.scanBusy) { api.invoke('scan.cancel'); return }
+    S.scanBusy = true
+    S.scanView = 'scan-running'
+    S.scanLastProgress = null
     $('#scanAllBtn').textContent = t('cancel')
     $('#scanProgress').classList.remove('hidden')
     $('#scanFill').style.width = '0%'
     try {
-      const depthPerChat = scanDepth === 'all' ? 99999 : (scanDepth || 300)
+      const depthPerChat = S.scanDepth === 'all' ? 99999 : (S.scanDepth || 300)
       const res = await api.invoke('scan.all', { depth: depthPerChat })
       S.scanResults = res.tracks || []
       S.scanView = 'results'
@@ -614,11 +626,13 @@ function renderScan() {
         } catch (e) {}
       }
     } finally {
-      scanBusy = false
+      S.scanBusy = false
       $('#scanAllBtn').textContent = t('scanAllChats')
+      const box = $('#scanProgress'); if (box) box.classList.add('hidden')
       if (S.scanView === 'results') renderScanResults()
     }
   }
+  restoreScanUi()
   drawScanChatList(S.chats && S.chats.length ? S.chats : S.channels)
   // اگر چت‌ها هنوز لود نشده‌اند
   if (!S.chats || !S.chats.length) {
@@ -735,8 +749,12 @@ function renderChatScanProgress(p) {
 function renderScanProgress(p) {
   // اگر در صفحهٔ آهنگ‌های یک چت هستیم، آنجا پیشرفت نشان بده
   if (S.scanView === 'chat' && !p.allChats) { renderChatScanProgress(p); return }
+  // آخرین پیشرفت را نگه دار تا هنگام بازگشت به تب اسکن دوباره نمایش دهیم
+  S.scanLastProgress = p
   const fill = $('#scanFill'), label = $('#scanLabel')
-  if (!fill) return
+  if (!fill) return // کاربر در تب دیگری است؛ وضعیت در S.scanLastProgress ماند
+  const wrap = $('#scanProgress')
+  if (S.scanBusy && wrap) wrap.classList.remove('hidden')
   if (p.allChats) {
     const pct = p.chatCount ? Math.round(100 * (p.chatIndex || 0) / p.chatCount) : 0
     fill.style.width = Math.min(100, pct) + '%'
@@ -745,7 +763,7 @@ function renderScanProgress(p) {
     if (p.total) fill.style.width = Math.min(100, Math.round(100 * p.processed / p.total)) + '%'
     label.textContent = `${t('scanned')} ${p.processed}${p.total ? '/' + p.total : ''} — ${p.found} ${t('found')}`
   }
-  if (p.done) {
+  if (p.done && !S.scanBusy) {
     setTimeout(() => {
       const box = $('#scanProgress'); if (box) box.classList.add('hidden')
     }, 2000)
@@ -1001,14 +1019,15 @@ function renderSettings() {
         <option value="en" ${s.lang === 'en' ? 'selected' : ''}>English</option>
       </select></div>
     <p class="section-label">${t('proxy')}</p>
-    <input id="pxServer" placeholder="${t('proxyServer')}" dir="ltr" value="${esc(s.proxy ? s.proxy.server : '')}" />
+    <input id="pxLink" placeholder="${t('proxyLink')}" dir="ltr" style="font-family:monospace;font-size:12px" />
+    <input id="pxServer" placeholder="${t('proxyServer')}" dir="ltr" value="${esc(s.proxy ? s.proxy.server : '')}" style="margin-top:8px" />
     <input id="pxPort" placeholder="${t('proxyPort')}" dir="ltr" value="${esc(s.proxy ? s.proxy.port : '')}" style="margin-top:8px" />
     <select id="pxType" class="set-select" style="margin-top:8px;width:100%">
       <option value="mtproto" ${s.proxy && s.proxy.type === 'mtproto' ? 'selected' : ''}>MTProto</option>
       <option value="socks5" ${s.proxy && s.proxy.type === 'socks5' ? 'selected' : ''}>SOCKS5</option>
       <option value="http" ${s.proxy && s.proxy.type === 'http' ? 'selected' : ''}>HTTP</option>
     </select>
-    <input id="pxSecret" placeholder="${t('proxySecret')}" dir="ltr" value="${esc(s.proxy && s.proxy.secret ? s.proxy.secret : '')}" style="margin-top:8px" />
+    <input id="pxSecret" placeholder="${t('proxySecret')}" dir="ltr" value="${esc(s.proxy && s.proxy.secret ? s.proxy.secret : '')}" style="margin-top:8px;font-family:monospace;font-size:12px" />
     <input id="pxUser" placeholder="${t('proxyUser')}" dir="ltr" value="${esc(s.proxy && s.proxy.username ? s.proxy.username : '')}" style="margin-top:8px" />
     <input id="pxPass" placeholder="${t('proxyPass')}" dir="ltr" value="${esc(s.proxy && s.proxy.password ? s.proxy.password : '')}" style="margin-top:8px" />
     <button id="pxSave" class="btn primary" style="margin-top:10px">${t('proxySave')}</button>
@@ -1035,6 +1054,48 @@ function renderSettings() {
   }
   $('#pxType').onchange = syncProxyFields
   syncProxyFields()
+
+  // ✅ پارس لینک پروکسی — مثل اندروید: tg://proxy?server=..&port=..&secret=..
+  //    یا mtproxy://host:port?secret=..  یا  host:port:secret
+  const parseProxyLink = (raw) => {
+    let s = (raw || '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
+    if (!s) return null
+    let server = null, port = '443', secret = null
+    let m
+    // فرمت کوئری: tg://proxy?server=X&port=Y&secret=Z  (یا t.me/proxy / telegram.me/proxy)
+    if (/tg:\/\/proxy|t\.me\/proxy|telegram\.me\/proxy|mtproxy:\/\//i.test(s)) {
+      const q = (s.split('?')[1] || '')
+      const params = new URLSearchParams(q)
+      server = params.get('server')
+      const p = params.get('port'); if (p) port = p
+      secret = params.get('secret')
+      // mtproxy://host:port?secret=..  (server از مسیر)
+      if (!server) {
+        const mm = /mtproxy:\/\/([^:/?]+):(\d{2,5})/i.exec(s)
+        if (mm) { server = mm[1]; port = mm[2] }
+      }
+    } else if ((m = /([a-zA-Z0-9.\-]+):(\d{2,5})[/:#\s]?([a-fA-F0-9]{16,})/.exec(s))) {
+      server = m[1]; port = m[2]; secret = m[3]
+    } else if (s.includes(':')) {
+      const parts = s.split(':')
+      if (parts.length >= 3) { server = parts[parts.length - 3].trim(); port = parts[parts.length - 2].trim(); secret = parts[parts.length - 1].trim() }
+    }
+    if (!server || !secret || secret.length < 16) return null
+    return { server, port, secret }
+  }
+  const fillFromLink = () => {
+    const parsed = parseProxyLink($('#pxLink').value)
+    if (!parsed) { toast(t('proxyBad')); return }
+    $('#pxServer').value = parsed.server
+    $('#pxPort').value = parsed.port
+    $('#pxSecret').value = parsed.secret
+    // لینک پروکسی تلگرام همیشه MTProto است
+    $('#pxType').value = 'mtproto'
+    syncProxyFields()
+    toast('✓')
+  }
+  $('#pxLink').addEventListener('change', fillFromLink)
+  $('#pxLink').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fillFromLink() } })
   $('#pxSave').onclick = async () => {
     const type = $('#pxType').value
     const proxy = {
