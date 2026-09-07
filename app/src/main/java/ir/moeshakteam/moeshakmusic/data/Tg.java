@@ -1775,6 +1775,9 @@ public final class Tg implements TdClient.UpdateHandler {
         long deadline = System.currentTimeMillis() + 30_000L;
         boolean ready = false;
         String path = null;
+        // downloaded_prefix_size از ابتدای فایل (offset 0) سنجیده می‌شود؛ برای seek باید
+        // تا انتهای بازه (offset+count) دانلود شده باشد.
+        long needPrefix = offset + count;
         while (System.currentTimeMillis() < deadline) {
             f = TdClient.syncRaw(new TdApi.GetFile(fileId));
             local = f.optJSONObject("local");
@@ -1784,14 +1787,14 @@ public final class Tg implements TdClient.UpdateHandler {
                 path = local.optString("path");
                 break;
             }
-            if (local.optLong("download_offset") == offset && local.optLong("downloaded_prefix_size") >= count) {
+            if (local.optLong("downloaded_prefix_size") >= needPrefix) {
                 ready = true;
                 break;
             }
             Thread.sleep(120);
         }
-        if (!ready) throw new IOException("chunk download timeout");
-        // ۳) ReadFilePart با raw
+        // ۳) ReadFilePart با raw — حتی اگر پرچم «آماده» برنخاست، خودِ بخش ممکن است رسیده باشد
+        //   (به‌ویژه هنگام seek به میانهٔ فایل). پس به‌جای پرتاب خطا مستقیم تلاش می‌کنیم.
         for (int attempt = 0; attempt < 12; attempt++) {
             try {
                 org.json.JSONObject d = TdClient.syncRaw(new TdApi.ReadFilePart(fileId, offset, (long) count));

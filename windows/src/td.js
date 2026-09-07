@@ -6,7 +6,7 @@ const { getTdjson } = require('prebuilt-tdlib')
 tdl.configure({ tdjson: getTdjson(), verbosityLevel: 1 })
 
 const CHUNK = 512 * 1024 // readFilePart limit
-const APP_VERSION = '6.0.4'
+const APP_VERSION = '6.0.5'
 
 // Map TDLib authorization_state names to friendly UI keys.
 const AUTH_MAP = {
@@ -369,6 +369,15 @@ class Tg {
     return this.invoke({ _: 'downloadFile', file_id: fileId, priority, offset: 0, limit: 0, synchronous: false })
       .then(fileToInfo)
   }
+  /**
+   * ✅ استریم واقعی: فقط همین بازه دانلود می‌شود (نه کل فایل).
+   * DownloadFile با offset/limit همان بازه را می‌کشد؛ سپس ReadFilePart داده را می‌دهد.
+   */
+  async downloadRange(fileId, offset, count, priority = 32) {
+    try {
+      await this.invoke({ _: 'downloadFile', file_id: fileId, priority, offset, limit: count, synchronous: false })
+    } catch (e) {}
+  }
   cancelDownloadFile(fileId) {
     return this.invoke({ _: 'cancelDownloadFile', file_id: fileId, only_if_pending: false }).catch(() => {})
   }
@@ -408,7 +417,8 @@ function fileToInfo(f) {
     path: (f.local && f.local.path) || '',
     downloading: !!(f.local && f.local.is_downloading_active),
     completed: !!(f.local && f.local.is_downloading_completed),
-    downloaded: (f.local && f.local.downloaded_size) || 0
+    downloaded: (f.local && f.local.downloaded_size) || 0,
+    downloadedPrefix: (f.local && f.local.downloaded_prefix_size) || 0
   }
 }
 

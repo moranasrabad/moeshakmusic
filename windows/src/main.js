@@ -105,13 +105,20 @@ async function readChunk(fileId, offset, count, mode) {
     }
     throw new Error('download timeout')
   }
-  await ensureDownload(fileId)
-  for (let i = 0; i < 100; i++) {
+  // ✅ استریم واقعی (پخش بدون دانلود کامل): فقط همین بازه را درخواست کن.
+  // بخشِ کش‌شده را بخوان؛ اگر نرسیده، دانلودِ بازه‌ای (نه کل فایل) را صبر کن.
+  let rangeRequested = false
+  for (let i = 0; i < 120; i++) {
     try {
       const data = await tg.readFilePart(fileId, offset, count)
       if (data && data.length) return data
-    } catch (e) { /* not ready yet */ }
-    await sleep(250)
+    } catch (e) { /* بخش هنوز آماده نیست */ }
+    // دانلود را فقط از این offset به بعد شروع/ادامه بده (limit=0 کل فایل را می‌کشید).
+    if (!rangeRequested) {
+      rangeRequested = true
+      try { await tg.downloadRange(fileId, Math.max(0, offset), Math.max(count, 512 * 1024), 32) } catch (e) {}
+    }
+    await sleep(200)
   }
   throw new Error('stream timeout')
 }
