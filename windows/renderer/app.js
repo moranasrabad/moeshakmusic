@@ -585,8 +585,8 @@ function renderScan() {
     <input id="scanSearch" placeholder="${t('searchChat')}" />
     <p class="section-label">${t('depth')}</p>
     <div class="scan-controls">
-      ${[50, 100, 300].map(d => `<button class="chip ${d === scanDepth ? 'active' : ''}" data-depth="${d}">${d}</button>`).join('')}
-      <button class="chip ${scanDepth === 'all' ? 'active' : ''}" data-depth="all">∞</button>
+      ${[50, 100, 300].map(d => `<button class="chip ${d === S.scanDepth ? 'active' : ''}" data-depth="${d}">${d}</button>`).join('')}
+      <button class="chip ${S.scanDepth === 'all' ? 'active' : ''}" data-depth="all">∞</button>
     </div>
     <p class="section-label">${t('scanChats')}</p>
     <div id="scanChatList"></div>
