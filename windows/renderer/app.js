@@ -15,7 +15,7 @@ const I18N = {
     empty: 'چیزی اینجا نیست', emptyTracks: 'هنوز آهنگی اسکن نکردی. از تب اسکن یا کانال‌ها شروع کن.',
     search: 'جستجو…', playAll: 'پخش همه', clear: 'پاک کردن',
     scanHint: 'یک کانال/گروه انتخاب کن و عمق اسکن را بزن — یا «اسکن همهٔ چت‌ها» را بزن', depth: 'عمق اسکن', start: 'شروع اسکن', cancel: 'لغو',
-    scanAllChats: '🔍 اسکن همهٔ چت‌ها', scanned: 'اسکن شد', found: 'آهنگ پیدا شد', addAll: 'افزودن همه به کتابخانه',
+    scanAllChats: '🔍 اسکن همهٔ چت‌ها', scanned: 'اسکن شد', found: 'آهنگ پیدا شد', addAll: 'افزودن همه به کتابخانه', showMore: 'نمایش بیشتر',
     follow: 'دنبال‌کردن', unfollow: 'لغو دنبال', followedNone: 'هنوز چتی را دنبال نکرده‌ای. از تب چت‌ها یا کانال‌ها دکمهٔ 🔔 را بزن.',
     followedCheck: 'بررسی آهنگ جدید', followedCount: 'چت دنبال‌شده', allChats: 'همه', archive: 'آرشیو',
     searchChat: 'جستجوی چت…', scanThis: 'اسکن این چت', openTracks: 'دیدن آهنگ‌ها',
@@ -45,7 +45,7 @@ const I18N = {
     empty: 'Nothing here', emptyTracks: 'No tracks yet. Start from Scan or Channels.',
     search: 'Search…', playAll: 'Play all', clear: 'Clear',
     scanHint: 'Pick a channel/group and choose depth — or hit “Scan all chats”', depth: 'Depth', start: 'Start scan', cancel: 'Cancel',
-    scanAllChats: '🔍 Scan all chats', scanned: 'Scanned', found: 'tracks found', addAll: 'Add all to library',
+    scanAllChats: '🔍 Scan all chats', scanned: 'Scanned', found: 'tracks found', addAll: 'Add all to library', showMore: 'Show more',
     follow: 'Follow', unfollow: 'Unfollow', followedNone: 'Not following any chats yet. Tap 🔔 in Chats or Channels.',
     followedCheck: 'Check for new tracks', followedCount: 'followed chats', allChats: 'All', archive: 'Archive',
     searchChat: 'Search chats…', scanThis: 'Scan this chat', openTracks: 'View tracks',
@@ -208,7 +208,12 @@ api.on('file', info => {
   }
 })
 api.on('lib', list => { S.tracks = list; if (S.tab === 'tracks') renderTracks() })
-api.on('fav', list => { S.favorites = list; if (S.tab === 'favorites') renderFavorites() })
+// ✅ Set فیوریت‌ها برای پاسخ سریع (ضد O(n²) در رندر هزاران ردیف)
+function buildFavSet() {
+  S._favKeys = new Set((S.favorites || []).map(trackKey))
+  S._favIds = new Set((S.favorites || []).map(f => f.id))
+}
+api.on('fav', list => { S.favorites = list; buildFavSet(); if (S.tab === 'favorites') renderFavorites() })
 api.on('pl', list => { S.playlists = list; if (S.tab === 'playlists' || S.tab === 'playlist') renderPlaylists() })
 api.on('dl', list => { S.downloads = list; if (S.tab === 'downloads') renderDownloads(); renderNowDl() })
 api.on('follow', list => { S.followed = list; if (S.tab === 'followed') renderFollowed() })
@@ -288,6 +293,8 @@ async function enterApp() {
   $('#app').classList.remove('hidden')
   applyTheme()
   try { S.me = await api.invoke('getMe') } catch (e) { S.me = null }
+  try { S.favorites = (await api.invoke('fav.list')) || [] } catch (e) {}
+  buildFavSet()
   renderNav()
   loadTabs()
   loadChannels()
@@ -352,7 +359,7 @@ function trackRowHtml(track, index, listKey) {
   const isPlaying = S.current && S.current.id === track.id
   const k = trackKey(track)
   const checked = S.selMode && S.selKeys.has(k)
-  const fav = S.favorites.some(f => trackKey(f) === k || f.id === track.id)
+  const fav = S._favKeys ? (S._favKeys.has(k) || S._favIds.has(track.id)) : S.favorites.some(f => trackKey(f) === k || f.id === track.id)
   return `<div class="track-row ${isPlaying ? 'playing' : ''} ${checked ? 'selected' : ''}" data-idx="${index}" data-key="${esc(k)}">
     ${S.selMode ? `<div class="track-check" data-act="check">${checked ? '☑' : '☐'}</div>` : ''}
     <div class="track-cover" style="background-image:url('${coverOf(track)}')">${track.albumCoverFileId || track.chatPhotoFileId ? '' : '♪'}</div>
@@ -410,6 +417,81 @@ function wireTrackRows(container, listKey) {
   })
 }
 
+// ✅ رندر با صفحه‌بندی + delegation برای لیست‌های بزرگ (مثل کتابخانه بعد از دیپ‌اسکن)
+const RENDER_PAGE = 200
+S._shownCount = S._shownCount || {}
+function renderTrackList(container, list, listKey) {
+  container.innerHTML = ''
+  S._shownCount[listKey] = RENDER_PAGE
+  const holder = document.createElement('div')
+  holder.id = 'tlHolder_' + listKey
+  container.appendChild(holder)
+  const drawPage = () => {
+    const n = S._shownCount[listKey]
+    holder.innerHTML = list.slice(0, n).map((tr, i) => trackRowHtml(tr, i, listKey)).join('')
+    // دکمهٔ «نمایش بیشتر»
+    let more = holder.nextElementSibling
+    if (list.length > n) {
+      if (!more || !more.id || more.id !== 'tlMore_' + listKey) {
+        more = document.createElement('button')
+        more.id = 'tlMore_' + listKey
+        more.className = 'btn ghost'
+        more.style.cssText = 'margin:10px 0;width:100%'
+        more.onclick = () => { S._shownCount[listKey] += RENDER_PAGE; drawPage(); window.scrollTo(0, document.body.scrollHeight) }
+        holder.after(more)
+      }
+      more.textContent = '⬇ ' + t('showMore') + ' (' + (list.length - n) + ')'
+    } else if (more && more.id === 'tlMore_' + listKey) {
+      more.remove()
+    }
+  }
+  drawPage()
+  wireTrackRowsDelegated(holder, listKey)
+  return holder
+}
+
+// یک‌بار سیم‌کشی رویدادها روی کانتینر (به‌جای هزاران هندلر روی هر ردیف)
+function wireTrackRowsDelegated(holder, listKey) {
+  holder.onclick = e => {
+    const row = e.target.closest('.track-row')
+    if (!row) return
+    const idx = parseInt(row.dataset.idx, 10)
+    const actEl = e.target.closest('[data-act]')
+    if (actEl && actEl.dataset.act === 'check') {
+      const tr = getList(listKey)[idx]
+      if (tr) { toggleSel(tr); loadTabs() }
+      return
+    }
+    if (S.selMode) {
+      const tr = getList(listKey)[idx]
+      if (tr) toggleSel(tr)
+      return
+    }
+    if (actEl) {
+      e.stopPropagation()
+      const track = getList(listKey)[idx]
+      if (!track) return
+      const act = actEl.dataset.act
+      if (act === 'fav') api.invoke('fav.toggle', { track })
+      else if (act === 'pl') openAddToPlaylist(track)
+      else if (act === 'dl') api.invoke('dl.add', { track })
+      else if (act === 'queue') { S.queue.push(track); toast('✓') }
+      return
+    }
+    playList(getList(listKey), idx)
+  }
+  holder.oncontextmenu = e => {
+    const row = e.target.closest('.track-row')
+    if (!row) return
+    e.preventDefault()
+    const idx = parseInt(row.dataset.idx, 10)
+    if (!S.selMode) enterSelection(listKey)
+    const tr = getList(listKey)[idx]
+    if (tr) toggleSel(tr)
+    loadTabs()
+  }
+}
+
 function getList(key) {
   if (key === 'favorites') return S.favorites
   if (key === 'downloads') return S.downloads
@@ -441,19 +523,17 @@ function renderTracks() {
     ov.querySelector('#clNo').onclick = () => ov.remove()
   }
   const list = S.selMode ? getList('tracks') : S.tracks
-  body.innerHTML = `<input id="searchInput" placeholder="${t('search')}" />` +
-    list.map((tr, i) => trackRowHtml(tr, i, 'tracks')).join('')
-  wireTrackRows(body, 'tracks')
+  body.innerHTML = `<input id="searchInput" placeholder="${t('search')}" /><div id="tracksWrap" style="margin-top:10px"></div>`
+  const wrap = $('#tracksWrap')
+  // ✅ رندر صفحه‌بندی‌شده (ضد فریز بعد از دیپ‌اسکن)
+  renderTrackList(wrap, list, 'tracks')
   const si = $('#searchInput')
   si.oninput = () => {
     const q = si.value.trim().toLowerCase()
     if (!q) { renderTracks(); return }
     S.searchResults = S.tracks.filter(tr => (tr.title + ' ' + (tr.performer || '') + ' ' + (tr.chatTitle || '')).toLowerCase().includes(q))
-    body.querySelectorAll('.track-row').forEach(r => r.remove())
-    const holder = document.createElement('div')
-    holder.innerHTML = S.searchResults.map((tr, i) => trackRowHtml(tr, i, 'search')).join('')
-    body.appendChild(holder)
-    wireTrackRows(holder, 'search')
+    wrap.innerHTML = ''
+    renderTrackList(wrap, S.searchResults, 'search')
   }
 }
 
@@ -1313,6 +1393,7 @@ $('#npFav').onclick = () => {
   if (!S.current) return
   api.invoke('fav.toggle', { track: S.current }).then(favs => {
     S.favorites = favs || S.favorites
+    buildFavSet()
     updateNpActionStates()
     toast(S.favorites.some(f => trackKey(f) === trackKey(S.current)) ? '❤️' : '🤍')
   })
