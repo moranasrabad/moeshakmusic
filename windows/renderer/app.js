@@ -3,6 +3,14 @@
 const api = window.moeshak
 const $ = sel => document.querySelector(sel)
 
+// ✅ لاگ رابط: خطا/کرش و اقدامات مهم به main فرستاده می‌شود تا در تب «لاگ» دیده شود
+function rlog(msg) { try { api.logError('[UI] ' + msg) } catch (e) {} }
+window.addEventListener('error', e => rlog('💥 خطای اسکریپت: ' + (e.message || '') + ' @ ' + (e.filename || '') + ':' + (e.lineno || '')))
+window.addEventListener('unhandledrejection', e => {
+  const r = e && e.reason
+  rlog('💥 promise رد شد: ' + ((r && (r.message || r.toString && r.toString())) || r))
+})
+
 // ---------------- i18n ----------------
 const I18N = {
   fa: {
@@ -11,7 +19,7 @@ const I18N = {
     codeSent: 'کد تأیید به تلگرام فرستاده شد', qrHint: 'تلگرام ← تنظیمات ← دستگاه‌ها ← اتصال دستگاه ← اسکن کن',
     refresh: 'تازه‌سازی', logout: 'خروج',
     tracks: 'آهنگ‌ها', scan: 'اسکن', playlists: 'پلی‌لیست‌ها', favorites: 'فیوریت',
-    downloads: 'دانلودها', channels: 'کانال‌ها', chats: 'چت‌ها', followed: 'دنبال‌شده‌ها', settings: 'تنظیمات', log: 'لاگ',
+    downloads: 'دانلودها', channels: 'کانال‌ها', chats: 'چت‌ها', followed: 'دنبال‌شده‌ها', settings: 'تنظیمات', log: 'لاگ', logClear: 'پاک‌کردن لاگ', logOnlyErrors: 'فقط خطاها/کرش‌ها',
     empty: 'چیزی اینجا نیست', emptyTracks: 'هنوز آهنگی اسکن نکردی. از تب اسکن یا کانال‌ها شروع کن.',
     search: 'جستجو…', playAll: 'پخش همه', clear: 'پاک کردن',
     scanHint: 'یک کانال/گروه انتخاب کن و عمق اسکن را بزن — یا «اسکن همهٔ چت‌ها» را بزن', depth: 'عمق اسکن', start: 'شروع اسکن', cancel: 'لغو',
@@ -41,7 +49,7 @@ const I18N = {
     codeSent: 'Code sent to your Telegram', qrHint: 'Telegram → Settings → Devices → Link Device → scan',
     refresh: 'Refresh', logout: 'Log out',
     tracks: 'Tracks', scan: 'Scan', playlists: 'Playlists', favorites: 'Favorites',
-    downloads: 'Downloads', channels: 'Channels', chats: 'Chats', followed: 'Following', settings: 'Settings', log: 'Log',
+    downloads: 'Downloads', channels: 'Channels', chats: 'Chats', followed: 'Following', settings: 'Settings', log: 'Log', logClear: 'Clear log', logOnlyErrors: 'Only errors/crashes',
     empty: 'Nothing here', emptyTracks: 'No tracks yet. Start from Scan or Channels.',
     search: 'Search…', playAll: 'Play all', clear: 'Clear',
     scanHint: 'Pick a channel/group and choose depth — or hit “Scan all chats”', depth: 'Depth', start: 'Start scan', cancel: 'Cancel',
@@ -1236,21 +1244,47 @@ function accentHex(c) {
 }
 
 function renderLog() {
-  $('#tabBody').innerHTML = `<div class="log-box" id="logBox"></div>`
+  $('#tabBody').innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <button id="logRefresh" class="btn ghost small">🔄 ${t('refresh')}</button>
+      <button id="logClear" class="btn ghost small">🗑 ${t('logClear')}</button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+        <input type="checkbox" id="logOnlyErr" /> ${t('logOnlyErrors')}
+      </label>
+      <span id="logCount" class="hint" style="margin-inline-start:auto"></span>
+    </div>
+    <div class="log-box" id="logBox"></div>`
   const box = $('#logBox')
-  if (S.pendingLogs && S.pendingLogs.length) {
-    S.pendingLogs.forEach(appendLog)
-  } else {
-    api.invoke('log.list').then(lines => { const b = $('#logBox'); if (b) { b.innerHTML = ''; lines.forEach(appendLog) } })
+  const render = lines => {
+    if (!box) return
+    box.innerHTML = ''
+    const onlyErr = $('#logOnlyErr') && $('#logOnlyErr').checked
+    const show = (lines || []).filter(e => !onlyErr || /💥|❌|⚠️|error|خطا|کرش/i.test(e.line || ''))
+    $('#logCount').textContent = show.length + (onlyErr ? ' (خطا)' : '')
+    show.forEach(appendLog)
+    box.scrollTop = box.scrollHeight
   }
+  const load = () => api.invoke('log.list').then(render).catch(() => {})
+  load()
+  $('#logRefresh').onclick = load
+  $('#logClear').onclick = async () => { await api.invoke('log.clear'); S.pendingLogs = []; load() }
+  $('#logOnlyErr').onchange = load
 }
 
 function appendLog(entry) {
-  const box = $('#logBox')
-  if (!box) return
+  let box = $('#logBox')
+  if (!box) { // اگر تب لاگ باز نیست، در صف نگه‌دار
+    S.pendingLogs = S.pendingLogs || []; S.pendingLogs.push(entry); return
+  }
   const line = document.createElement('div')
-  line.textContent = `[${(entry.ts || '').slice(11, 19)}] ${entry.line}`
+  const txt = entry.line || ''
+  const isErr = /💥|❌|⚠️|error|خطا|کرش|exception|reject/i.test(txt)
+  const isOk = /✅|🏁|📶|🔐/.test(txt)
+  line.textContent = `[${(entry.ts || '').slice(11, 19)}] ${txt}`
+  line.style.cssText = isErr ? 'color:#ff7a7a' : (isOk ? 'color:#7ee2a8' : '')
   box.appendChild(line)
+  // جلوگیری از رشد بی‌حدود DOM در تب لاگ
+  while (box.childNodes.length > 700) box.removeChild(box.firstChild)
   box.scrollTop = box.scrollHeight
 }
 

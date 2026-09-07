@@ -6,7 +6,7 @@ const { getTdjson } = require('prebuilt-tdlib')
 tdl.configure({ tdjson: getTdjson(), verbosityLevel: 1 })
 
 const CHUNK = 512 * 1024 // readFilePart limit
-const APP_VERSION = '6.1.3'
+const APP_VERSION = '6.1.4'
 
 // Map TDLib authorization_state names to friendly UI keys.
 const AUTH_MAP = {
@@ -29,6 +29,7 @@ class Tg {
     this.apiId = opts.apiId
     this.apiHash = opts.apiHash
     this.onEvent = opts.onEvent || (() => {})
+    this.onLog = opts.onLog || null
     this.scanCancel = false
     this._scanActive = false
     this.lastQrLink = ''
@@ -333,26 +334,57 @@ class Tg {
     const allResults = []
     let processedChats = 0
     let totalChats = 0
+    // ✅ throttle پیشرفت: حداکثر هر ۳۰۰ms یک رویداد بفرست (ضد رگبار IPC/DOM که اپ را قفل می‌کرد)
+    let lastEmit = 0
+    let pending = null
+    const emit = (p, force) => {
+      pending = p
+      const now = Date.now()
+      if (!force && now - lastEmit < 300) return
+      lastEmit = now
+      onProgress && onProgress(p)
+    }
     try {
       const all = await this.getAllChats()
       totalChats = all.length
+      this.onLog && this.onLog('🔍 اسکن همه شروع شد — ' + totalChats + ' چت، عمق ' + depth)
       const seen = new Set()
       for (const c of all) {
         if (this.scanCancel) break
-        const tracks = await this._scanChat(c.id, depth, p => {
-          onProgress && onProgress({
-            processed: p.processed, total: p.total, found: allResults.length + p.found,
-            chatTitle: c.title, chatIndex: processedChats, chatCount: totalChats, allChats: true
+        const t0 = Date.now()
+        let tracks = []
+        const CHAT_DEADLINE = 90_000 // حداکثر ۹۰ ثانیه برای هر چت (ضد گیرکردن روی یک چت)
+        let deadlineTimer = null
+        try {
+          const scanPromise = this._scanChat(c.id, depth, p => {
+            emit({
+              processed: p.processed, total: p.total, found: allResults.length + p.found,
+              chatTitle: c.title, chatIndex: processedChats, chatCount: totalChats, allChats: true
+            })
           })
-        })
+          const timeoutPromise = new Promise(res => {
+            deadlineTimer = setTimeout(() => { this.onLog && this.onLog('⏱ مهلت ۹۰ثانیه‌ای چت «' + c.title + '» تمام شد — رد شد'); res([]) }, CHAT_DEADLINE)
+          })
+          tracks = await Promise.race([scanPromise, timeoutPromise])
+        } catch (e) {
+          this.onLog && this.onLog('⚠️ اسکن «' + c.title + '» خطا: ' + (e && e.message))
+        } finally {
+          if (deadlineTimer) clearTimeout(deadlineTimer)
+        }
         for (const t of tracks) {
           const key = t.chatId + ':' + t.messageId
           if (!seen.has(key)) { seen.add(key); allResults.push(t) }
         }
         processedChats++
-        onProgress && onProgress({ found: allResults.length, chatTitle: c.title, chatIndex: processedChats, chatCount: totalChats, allChats: true, phase: 'chat-done' })
+        const secs = ((Date.now() - t0) / 1000).toFixed(1)
+        this.onLog && this.onLog('✅ [' + processedChats + '/' + totalChats + '] «' + c.title + '» → ' + tracks.length + ' آهنگ (' + secs + 's)')
+        emit({ found: allResults.length, chatTitle: c.title, chatIndex: processedChats, chatCount: totalChats, allChats: true, phase: 'chat-done' })
       }
-      onProgress && onProgress({ found: allResults.length, chatIndex: processedChats, chatCount: totalChats, allChats: true, done: true, canceled: this.scanCancel })
+      this.onLog && this.onLog('🏁 اسکن تمام شد — مجموع ' + allResults.length + ' آهنگ')
+      emit({ found: allResults.length, chatIndex: processedChats, chatCount: totalChats, allChats: true, done: true, canceled: this.scanCancel }, true)
+    } catch (e) {
+      this.onLog && this.onLog('❌ خطای کلی اسکن: ' + (e && e.message))
+      emit({ found: allResults.length, chatIndex: processedChats, chatCount: totalChats, allChats: true, done: true }, true)
     } finally {
       this._scanActive = false
     }

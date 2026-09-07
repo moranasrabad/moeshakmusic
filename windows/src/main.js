@@ -36,10 +36,18 @@ try { app.setAppUserModelId('ir.moeshakteam.moeshakmusic') } catch (e) {}
 const logLines = []
 function log(line) {
   const entry = { ts: new Date().toISOString(), line: String(line) }
-  logLines.push(entry)
-  if (logLines.length > 500) logLines.shift()
-  if (win) win.webContents.send('evt:log', entry)
+  try {
+    logLines.push(entry)
+    if (logLines.length > 800) logLines.shift()
+    console.log('[moeshak]', line)
+    if (win && !win.isDestroyed()) win.webContents.send('evt:log', entry)
+  } catch (e) {}
 }
+// ✅ ثبت کرش/خطاهای پیش‌بینی‌نشده در لاگ تا در تب لاگ دیده شوند
+process.on('uncaughtException', e => { try { log('💥 uncaughtException: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)) } catch (_) {} })
+process.on('unhandledRejection', e => { try { log('💥 unhandledRejection: ' + ((e && e.message) || e)) } catch (_) {} })
+// تلهٔ خطاهای رندرر (به main فرستاده می‌شوند)
+ipcMain.on('renderer-error', (e, msg) => { try { log('🟥 renderer: ' + msg) } catch (_) {} })
 
 // ---------------------------------------------------------------------------
 // schemes (must be registered before app ready)
@@ -65,15 +73,19 @@ function ensureTg() {
         lastAuth = data
         // مثل اندروید: وقتی اتصال آماده شد، پروکسی ذخیره‌شده را دوباره اعمال کن
         if (data && data.state === 'ready') {
+          log('✅ اتصال آماده شد (state=ready)')
           const sp = store.settings().proxy
           if (sp && sp.server && sp.port) {
             tg.setProxy(sp).then(() => log('Proxy re-applied on ready: ' + sp.server)).catch(e => log('Proxy re-apply failed: ' + (e && e.message)))
           }
+        } else {
+          log('🔐 حالت احراز هویت: ' + data.state)
         }
       }
       if (win && !win.isDestroyed()) win.webContents.send('evt:' + type, data)
-      if (type === 'error') log('TDLib: ' + data)
-    }
+      if (type === 'error') log('TDLib error: ' + data)
+    },
+    onLog: (line) => log(line)
   })
   log('TDLib client created (api_id=' + apiId + ')')
   // ✅ پروکسی ذخیره‌شده (از جمله MTProto) را موقع استارت دوباره اعمال کن

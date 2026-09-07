@@ -55,24 +55,32 @@ class Store {
    */
   normTracks(tracks) {
     if (!Array.isArray(tracks)) return []
-    let changed = false
     const out = tracks.map(t => {
       if (!t || typeof t !== 'object') return t
       let tr = t
+      // ✅ مینی‌تامبنیلِ base64 را در کتابخانه ذخیره نکن (۳۳ هزار آهنگ → فایل/IPC چندده‌مگابایتی و فریز)
+      if (tr.albumCoverMini) tr = Object.assign({}, tr, { albumCoverMini: '' })
       if ((tr.fileId === undefined || tr.fileId === null || !tr.fileId) && tr.id) {
-        tr = Object.assign({}, tr, { fileId: tr.id }); changed = true
+        tr = Object.assign({}, tr, { fileId: tr.id })
       }
       if ((tr.id === undefined || tr.id === null || !tr.id) && tr.fileId) {
-        tr = Object.assign({}, tr, { id: tr.fileId }); changed = true
+        tr = Object.assign({}, tr, { id: tr.fileId })
       }
       return tr
     })
-    if (changed) { try { this.write('library.json', out) } catch (e) {} }
     return out
   }
 
   library() { return this.normTracks(this.read('library.json', [])) }
-  saveLibrary(tracks) { this.write('library.json', this.normTracks(tracks)) }
+  // ذخیرهٔ ناهم‌زمان و دیباونس‌شده تا نوشتن فایل بزرگ روی main اپ را قفل نکند
+  saveLibrary(tracks) {
+    const clean = this.normTracks(tracks)
+    this._libCache = clean
+    clearTimeout(this._libTimer)
+    this._libTimer = setTimeout(() => {
+      try { this.write('library.json', this._libCache || clean) } catch (e) {}
+    }, 400)
+  }
 
   favorites() { return this.read('favorites.json', []) }
   saveFavorites(tracks) { this.write('favorites.json', tracks) }
