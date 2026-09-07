@@ -6,7 +6,7 @@ const { getTdjson } = require('prebuilt-tdlib')
 tdl.configure({ tdjson: getTdjson(), verbosityLevel: 1 })
 
 const CHUNK = 512 * 1024 // readFilePart limit
-const APP_VERSION = '6.0.5'
+const APP_VERSION = '6.0.6'
 
 // Map TDLib authorization_state names to friendly UI keys.
 const AUTH_MAP = {
@@ -389,19 +389,36 @@ class Tg {
 
   // ---- proxy ------------------------------------------------------------
   async setProxy(p) {
+    // حذف همهٔ پروکسی‌ها و غیرفعال‌کردن
     if (!p || !p.server || !p.port) {
-      return this.invoke({ _: 'setOption', name: 'proxy', value: { _: 'proxyTypeEmpty' } }).catch(() => {})
-    }
-    const type = p.type === 'http'
-      ? { _: 'proxyTypeHttp', username: p.username || '', password: p.password || '', http_only: true }
-      : { _: 'proxyTypeSocks5', username: p.username || '', password: p.password || '' }
-    try {
-      const added = await this.invoke({ _: 'addProxy', server: p.server, port: parseInt(p.port, 10), enable: true, type })
-      await this.invoke({ _: 'setOption', name: 'proxy', value: added })
+      try {
+        const res = await this.invoke({ _: 'getProxies' })
+        const ids = (res && res.proxies) || []
+        for (const pr of ids) {
+          try { await this.invoke({ _: 'removeProxy', proxy_id: pr.id }) } catch (e) {}
+        }
+      } catch (e) {}
       return true
-    } catch (e) {
-      throw e
     }
+    let type
+    if (p.type === 'http') {
+      type = { _: 'proxyTypeHttp', username: p.username || '', password: p.password || '', http_only: true }
+    } else if (p.type === 'mtproto') {
+      // ✅ پروکسی MTProto تلگرام — فقط server/port/secret
+      type = { _: 'proxyTypeMtproto', secret: p.secret || '' }
+    } else {
+      type = { _: 'proxyTypeSocks5', username: p.username || '', password: p.password || '' }
+    }
+    // پروکسی‌های قبلی را پاک کن تا همیشه فقط یکی فعال باشد
+    try {
+      const res = await this.invoke({ _: 'getProxies' })
+      for (const pr of (res && res.proxies) || []) {
+        try { await this.invoke({ _: 'removeProxy', proxy_id: pr.id }) } catch (e) {}
+      }
+    } catch (e) {}
+    // addProxy با enable:true همان لحظه پروکسی را فعال می‌کند
+    const added = await this.invoke({ _: 'addProxy', server: p.server, port: parseInt(p.port, 10), enable: true, type })
+    return added
   }
 
   async close() {

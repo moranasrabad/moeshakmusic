@@ -67,6 +67,11 @@ function ensureTg() {
     }
   })
   log('TDLib client created (api_id=' + apiId + ')')
+  // ✅ پروکسی ذخیره‌شده (از جمله MTProto) را موقع استارت دوباره اعمال کن
+  if (settings.proxy && settings.proxy.server && settings.proxy.port) {
+    tg.setProxy(settings.proxy).then(() => log('Proxy applied on start: ' + settings.proxy.server + ':' + settings.proxy.port))
+      .catch(e => log('Proxy apply failed: ' + (e && e.message)))
+  }
   return tg
 }
 
@@ -105,20 +110,17 @@ async function readChunk(fileId, offset, count, mode) {
     }
     throw new Error('download timeout')
   }
-  // ✅ استریم واقعی (پخش بدون دانلود کامل): فقط همین بازه را درخواست کن.
-  // بخشِ کش‌شده را بخوان؛ اگر نرسیده، دانلودِ بازه‌ای (نه کل فایل) را صبر کن.
-  let rangeRequested = false
-  for (let i = 0; i < 120; i++) {
+  // ✅ استریم (پخش بدون دانلود کامل):
+  // دانلود را با اولویت بالا شروع کن ولی «منتظر اتمامش نمان» — به‌محض اینکه اولین بازه
+  // کش شد، readFilePart داده را برمی‌گرداند و پخش شروع می‌شود؛ بقیه حین پخش می‌رسد.
+  // (روش پایدار TDLib؛ روش دانلودِ بازه‌ای offset/limit در الکترون پخش را قطع می‌کرد.)
+  await ensureDownload(fileId)
+  for (let i = 0; i < 200; i++) {
     try {
       const data = await tg.readFilePart(fileId, offset, count)
       if (data && data.length) return data
     } catch (e) { /* بخش هنوز آماده نیست */ }
-    // دانلود را فقط از این offset به بعد شروع/ادامه بده (limit=0 کل فایل را می‌کشید).
-    if (!rangeRequested) {
-      rangeRequested = true
-      try { await tg.downloadRange(fileId, Math.max(0, offset), Math.max(count, 512 * 1024), 32) } catch (e) {}
-    }
-    await sleep(200)
+    await sleep(150)
   }
   throw new Error('stream timeout')
 }

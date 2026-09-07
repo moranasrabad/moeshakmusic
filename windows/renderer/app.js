@@ -27,7 +27,7 @@ const I18N = {
     addToQueue: 'افزودن به صف', fullScan: 'اسکن کامل', downloadAll: 'دانلود کامل',
     theme: 'تم', dark: 'شب', light: 'روز', accent: 'رنگ اکسنت', lang: 'زبان',
     proxy: 'پروکسی', proxyType: 'نوع', proxyServer: 'سرور', proxyPort: 'پورت', proxyUser: 'یوزر', proxyPass: 'پسورد',
-    proxySave: 'ذخیره پروکسی', apiKeys: 'کلید API شخصی', apiId: 'api_id', apiHash: 'api_hash',
+    proxySave: 'ذخیره پروکسی', proxySecret: 'سکرت (Secret)', proxyClear: 'حذف پروکسی', proxyFields: 'سرور، پورت و (برای MTProto) سکرت را وارد کن', apiKeys: 'کلید API شخصی', apiId: 'api_id', apiHash: 'api_hash',
     apiHint: 'بعد از تغییر، اپ را ری‌استارت کن', save: 'ذخیره',
     connReady: 'اتصال برقرار است', connConnecting: 'در حال اتصال…', connWaiting: 'در انتظار شبکه…', connUpdating: 'به‌روزرسانی…',
     logoutConfirm: 'از حساب خارج شوی؟', yes: 'بله', no: 'نه',
@@ -57,7 +57,7 @@ const I18N = {
     addToQueue: 'Add to queue', fullScan: 'Full scan', downloadAll: 'Download all',
     theme: 'Theme', dark: 'Dark', light: 'Light', accent: 'Accent', lang: 'Language',
     proxy: 'Proxy', proxyType: 'Type', proxyServer: 'Server', proxyPort: 'Port', proxyUser: 'User', proxyPass: 'Pass',
-    proxySave: 'Save proxy', apiKeys: 'Personal API keys', apiId: 'api_id', apiHash: 'api_hash',
+    proxySave: 'Save proxy', proxySecret: 'Secret', proxyClear: 'Remove proxy', proxyFields: 'Enter server, port, and (for MTProto) secret', apiKeys: 'Personal API keys', apiId: 'api_id', apiHash: 'api_hash',
     apiHint: 'Restart the app after changing', save: 'Save',
     connReady: 'Connected', connConnecting: 'Connecting…', connWaiting: 'Waiting for network…', connUpdating: 'Updating…',
     logoutConfirm: 'Log out?', yes: 'Yes', no: 'No',
@@ -995,10 +995,15 @@ function renderSettings() {
     <input id="pxServer" placeholder="${t('proxyServer')}" dir="ltr" value="${esc(s.proxy ? s.proxy.server : '')}" />
     <input id="pxPort" placeholder="${t('proxyPort')}" dir="ltr" value="${esc(s.proxy ? s.proxy.port : '')}" style="margin-top:8px" />
     <select id="pxType" class="set-select" style="margin-top:8px;width:100%">
-      <option value="socks5" ${s.proxy && s.proxy.type !== 'http' ? 'selected' : ''}>SOCKS5</option>
+      <option value="mtproto" ${s.proxy && s.proxy.type === 'mtproto' ? 'selected' : ''}>MTProto</option>
+      <option value="socks5" ${s.proxy && s.proxy.type === 'socks5' ? 'selected' : ''}>SOCKS5</option>
       <option value="http" ${s.proxy && s.proxy.type === 'http' ? 'selected' : ''}>HTTP</option>
     </select>
+    <input id="pxSecret" placeholder="${t('proxySecret')}" dir="ltr" value="${esc(s.proxy && s.proxy.secret ? s.proxy.secret : '')}" style="margin-top:8px" />
+    <input id="pxUser" placeholder="${t('proxyUser')}" dir="ltr" value="${esc(s.proxy && s.proxy.username ? s.proxy.username : '')}" style="margin-top:8px" />
+    <input id="pxPass" placeholder="${t('proxyPass')}" dir="ltr" value="${esc(s.proxy && s.proxy.password ? s.proxy.password : '')}" style="margin-top:8px" />
     <button id="pxSave" class="btn primary" style="margin-top:10px">${t('proxySave')}</button>
+    <button id="pxClear" class="btn ghost" style="margin-top:6px">${t('proxyClear')}</button>
     <div id="dlActiveBox"></div>
     <p class="section-label">${t('apiKeys')}</p>
     <input id="apiIdInput" placeholder="${t('apiId')}" dir="ltr" value="${esc(s.apiId || '')}" />
@@ -1013,9 +1018,39 @@ function renderSettings() {
     await api.invoke('settings.set', { patch: { accent: sw.dataset.accent } })
     applyTheme(); renderSettings()
   })
+  const syncProxyFields = () => {
+    const isMtp = $('#pxType').value === 'mtproto'
+    $('#pxSecret').style.display = isMtp ? '' : 'none'
+    $('#pxUser').style.display = isMtp ? 'none' : ''
+    $('#pxPass').style.display = isMtp ? 'none' : ''
+  }
+  $('#pxType').onchange = syncProxyFields
+  syncProxyFields()
   $('#pxSave').onclick = async () => {
-    const proxy = { type: $('#pxType').value, server: $('#pxServer').value.trim(), port: $('#pxPort').value.trim() }
-    try { await api.invoke('proxy.set', { proxy }); toast('✓') } catch (e) { toast('✗ ' + e.message) }
+    const type = $('#pxType').value
+    const proxy = {
+      type,
+      server: $('#pxServer').value.trim(),
+      port: $('#pxPort').value.trim(),
+      secret: $('#pxSecret').value.trim(),
+      username: $('#pxUser').value.trim(),
+      password: $('#pxPass').value.trim()
+    }
+    if (!proxy.server || !proxy.port) { toast(t('proxyFields')); return }
+    if (type === 'mtproto' && !proxy.secret) { toast(t('proxyFields')); return }
+    try {
+      await api.invoke('proxy.set', { proxy })
+      await api.invoke('settings.set', { patch: { proxy } })
+      toast('✓')
+    } catch (e) { toast('✗ ' + (e.message || e)) }
+  }
+  $('#pxClear').onclick = async () => {
+    try {
+      await api.invoke('proxy.set', { proxy: null })
+      await api.invoke('settings.set', { patch: { proxy: null } })
+      $('#pxServer').value = ''; $('#pxPort').value = ''; $('#pxSecret').value = ''; $('#pxUser').value = ''; $('#pxPass').value = ''
+      toast('✓')
+    } catch (e) { toast('✗ ' + (e.message || e)) }
   }
   $('#apiSave').onclick = async () => {
     await api.invoke('settings.set', { patch: { apiId: $('#apiIdInput').value.trim(), apiHash: $('#apiHashInput').value.trim() } })

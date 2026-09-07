@@ -224,10 +224,17 @@ public final class PlayerManager {
             playUri(Uri.fromFile(new File(stored)), autoplay);
             return;
         }
-        // مسیر مطمئن v2: دانلود کامل (با درصد) → پخش از فایل محلی
-        // (استریم tdlib:// بعداً وقتی پایدار شد برمی‌گردد)
+        // ۳) ✅ استریم (پخش بدون دانلود کامل): TdlibDataSource فقط بازهٔ موردنیاز را می‌کشد.
+        // اگر استریم برای این ترک قبلاً شکست خورده باشد (streamFailed)، سراغ دانلود کامل می‌رویم.
+        if (!t.streamFailed) {
+            Tg.log("▶️ استریم (بدون دانلود کامل): " + t.title + " (fileId=" + t.fileId + ")");
+            Uri streamUri = Uri.parse("tdlib://file/" + t.fileId + "?size=" + t.expectedSize);
+            playUri(streamUri, autoplay);
+            return;
+        }
+        // ۴) فالبک: دانلود کامل (با درصد) → پخش از فایل محلی
         t.downloadPct = 0;
-        Tg.log("▶️ شروع دانلود برای پخش: " + t.title + " (fileId=" + t.fileId + ")");
+        Tg.log("⬇️ فالبک دانلود کامل برای پخش: " + t.title + " (fileId=" + t.fileId + ")");
         Tg.get(ctx).downloadTrack(t, new Tg.DownloadListener() {
             @Override
             public void onProgress(int pct) {

@@ -790,11 +790,18 @@ public final class Tg implements TdClient.UpdateHandler {
             int files = 0;
             List<Track> buffer = new ArrayList<>();
             try {
-                // همهٔ حالت‌های اسکن، کل تاریخچهٔ هر چت را می‌خوانند (کامل — هیچ سقفی روی پیام‌ها نیست)
-                final boolean deep = count >= Integer.MAX_VALUE;
+                // ✅ v6.0.6: اسکن پیش‌فرض «سریع» است (فقط ~۳۰۰ پیام اخیر هر چت).
+                // دیپ‌اسکنِ کل تاریخچه فقط برای چت‌های فالوشده یا انتخاب دستی کاربر انجام می‌شود
+                // (مسیرهای جداگانه: checkFollowed و deepScanChat).
+                List<TdApi.Chat> allChats = loadAllChats();
+                final java.util.Set<Long> followedIds = new java.util.HashSet<>();
+                try {
+                    for (FollowStore.Followed f : FollowStore.get(ctx).all()) followedIds.add(f.chatId);
+                } catch (Exception ignored) {}
                 log("🚀 اسکن شروع شد → " + (toLibrary ? "کتابخانه" : "بخش اسکن")
-                        + " (" + (deep ? "همهٔ چت‌ها" : count + " چت") + " — تاریخچهٔ کامل هر چت)");
-                List<TdApi.Chat> all = loadAllChats();
+                        + " (" + allChats.size() + " چت) — پیش‌فرض سریع؛ "
+                        + followedIds.size() + " چتِ فالوشده دیپ می‌شود");
+                List<TdApi.Chat> all = allChats;
                 log("📋 " + all.size() + " چت لود شد");
                 // Saved Messages همیشه اول
                 try {
@@ -824,10 +831,13 @@ public final class Tg implements TdClient.UpdateHandler {
                     try {
                         int[] msgs = new int[1];  // شمارندهٔ مستقل برای هر چت
                         long t0 = System.currentTimeMillis();
-                        found = scanChatHistory(c, msgs, deep);
+                        // ✅ دیپ‌اسکن فقط برای چت‌های فالوشده؛ بقیه اسکن سریع (~۳۰۰ پیام اخیر).
+                        // انتخاب دستیِ یک چت هم از مسیر deepScanChat به‌صورت عمیق اسکن می‌شود.
+                        boolean chatDeep = followedIds.contains(c.id);
+                        found = scanChatHistory(c, msgs, chatDeep);
                         long ms = System.currentTimeMillis() - t0;
                         log("✅ [" + (i + 1) + "/" + end + "] «" + title + "» → " + msgs[0] + " پیام، "
-                                + found.size() + " فایل صوتی (" + ms + "ms)");
+                                + found.size() + " فایل صوتی (" + ms + "ms" + (chatDeep ? "، دیپ" : "، سریع") + ")");
                     } catch (Exception e) {
                         // یک چت خراب نباید کل اسکن را از کار بیندازد
                         log("⚠️ «" + title + "» اسکن نشد: " + e.getMessage());
