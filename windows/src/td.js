@@ -471,7 +471,19 @@ class Tg {
     await this._removeAllProxies()
 
     // افزودن و فعال‌سازی یک‌جا (enable=true) — همان روش اندروید
-    const added = await this.invoke({ _: 'addProxy', server, port, enable: true, type })
+    // ⚠️ TDLib جدید (1.8.6x به بعد) امضای addProxy عوض کرده: به‌جای server/port/type جدا،
+    //    یک آبجکت کامل proxy می‌گیرد. فرم قدیمی خطای 400 «Proxy must be non-empty» می‌داد
+    //    و پروکسی هرگز اعمال نمی‌شد (و در نتیجه پخش/دانلود بدون پروکسی گیر می‌کرد).
+    let added, firstErr
+    try {
+      added = await this.invoke({ _: 'addProxy', enable: true, comment: '', proxy: { _: 'proxy', server, port, type } })
+    } catch (e1) {
+      firstErr = e1
+      try {
+        // TDLib قدیمی: addProxy(server, port, enable, type)
+        added = await this.invoke({ _: 'addProxy', server, port, enable: true, type })
+      } catch (e2) { throw firstErr }
+    }
     return added
   }
 
